@@ -6,7 +6,7 @@ tableOfContents:
  maxHeadingLevel: 2
 ---
 
-<a class="cta-pdf" href="/kovra-design-rationale.pdf" download>↓&nbsp;&nbsp;Download as PDF</a>
+<a class="cta-pdf" href="/secrets-in-the-age-of-ai-agents.pdf" download>↓&nbsp;&nbsp;Download as PDF</a>
 
 :::note[What this is]
 This is **kovra's whitepaper** — a design-rationale article, not a research paper. It makes no
