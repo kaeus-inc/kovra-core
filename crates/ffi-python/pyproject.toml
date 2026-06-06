@@ -10,7 +10,6 @@ license = { text = "BUSL-1.1" }
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: 3.12",
-    "Private :: Do Not Upload",
 ]
 dynamic = ["version"]
 
