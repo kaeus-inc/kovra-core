@@ -76,8 +76,12 @@ plus `inject-only`) and an **executor allowlist** for privileged injection.
 ## Quick start (macOS)
 
 ```bash
-# install (Homebrew tap)
-brew install kaeus-inc/kovra/kovra
+# install the kovra CLI — pick one:
+brew install kaeus-inc/kovra/kovra   # Homebrew tap (macOS, recommended)
+cargo install kovra                  # from crates.io (any platform with a Rust toolchain)
+
+# for AI agents, also install the MCP server (exposes the scoped surface over MCP):
+pip install kovra-mcp
 
 # initialize the vault registry + master key
 kovra init

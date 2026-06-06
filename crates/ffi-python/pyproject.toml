@@ -4,14 +4,25 @@ build-backend = "maturin"
 
 [project]
 name = "kovra-ffi"
-description = "PyO3 bindings exposing the kovra core to Python (L9 MCP server)."
+description = "PyO3 bindings exposing the kovra Rust core to Python (used by kovra-mcp)."
+readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "BUSL-1.1" }
+keywords = ["secrets", "kovra", "pyo3", "bindings"]
 classifiers = [
-    "Programming Language :: Rust",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: Other/Proprietary License",
+    "Operating System :: MacOS",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Topic :: Security",
 ]
 dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://kovra.sh"
+Repository = "https://github.com/kaeus-inc/kovra-core"
 
 [tool.maturin]
 # Build the abi3 wheel: enable the pyo3 extension-module feature only here, so
