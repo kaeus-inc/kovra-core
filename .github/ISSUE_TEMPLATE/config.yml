@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Report a security vulnerability (PRIVATE)
+    url: https://github.com/kaeus-inc/kovra-core/security/advisories/new
+    about: Do NOT open a public issue for security problems. Report privately via a GitHub Security Advisory (or security@kaeusanalytics.com). See SECURITY.md.
+  - name: 💬 Questions & discussion
+    url: https://github.com/kaeus-inc/kovra-core/discussions
+    about: Ask questions, share ideas, or give feedback.

@@ -1,0 +1,293 @@
+/* kovra docs — brand theme.
+ * Derived from docs/design/brand.md (canonical brand system, approved 2026-06-03):
+ * dark-first, slate neutrals + emerald accent + gold garnish.
+ * Emerald is the action color; gold is a garnish (logo edges / thin dividers only).
+ */
+
+:root {
+  /* Brand palette (brand.md §Color palette) */
+  --kovra-accent: #10b981; /* primary */
+  --kovra-accent-2: #34d399; /* gradient end / hover / highlight */
+  --kovra-accent-3: #047857; /* pressed / dark fills */
+  --kovra-gold: #d4af37; /* garnish only */
+  --kovra-bg: #0a0f0d; /* canvas */
+  --kovra-surface: #111827; /* cards / inputs */
+  --kovra-surface-2: #1f2937; /* elevated */
+
+  /* Brand gradient (logo tiles, primary buttons) */
+  --kovra-gradient: linear-gradient(140deg, #10b981, #34d399);
+}
+
+/* ── Dark theme (default) ─────────────────────────────────────────────── */
+:root,
+:root[data-theme='dark'] {
+  /* Emerald accent ramp */
+  --sl-color-accent-low: #052e23;
+  --sl-color-accent: var(--kovra-accent);
+  --sl-color-accent-high: #a7f3d0;
+  --sl-color-text-accent: var(--kovra-accent-2);
+
+  /* Near-black canvas + slate surfaces */
+  --sl-color-bg: var(--kovra-bg);
+  --sl-color-bg-nav: rgba(10, 15, 13, 0.85);
+  --sl-color-bg-sidebar: #0c1411;
+  --sl-color-bg-inline-code: var(--kovra-surface-2);
+  --sl-color-black: var(--kovra-bg);
+  --sl-color-gray-7: #0c1411;
+  --sl-color-gray-6: var(--kovra-surface);
+  --sl-color-gray-5: #243041;
+  --sl-color-hairline-shade: rgba(212, 175, 55, 0.12); /* thin gold-tinted divider */
+}
+
+/* ── Light theme (kept usable, still emerald-led) ─────────────────────── */
+:root[data-theme='light'] {
+  --sl-color-accent-low: #c6f5e4;
+  --sl-color-accent: var(--kovra-accent-3);
+  --sl-color-accent-high: #04231b;
+  --sl-color-text-accent: var(--kovra-accent-3);
+}
+
+/* ── Typography: Sora for display, Inter for body (brand.md §Typography) ──
+ * Vendored locally via Fontsource — no runtime CDN (offline constraint,
+ * brand.md). The woff2 are bundled into the build by Astro and served from
+ * kovra.sh; @font-face comes from the Fontsource CSS wired in astro.config.mjs.
+ */
+:root {
+  --kovra-font-display: 'Sora Variable', ui-sans-serif, system-ui, sans-serif;
+  --sl-font: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sl-font-system-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+}
+
+/* Wordmark: lowercase, tight tracking (brand.md §Typography, ≈ -0.03em). */
+.site-title {
+  font-family: var(--kovra-font-display);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+/* Display face on headings + the hero title; body stays Inter. */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.hero h1,
+h1#_top {
+  font-family: var(--kovra-font-display);
+  letter-spacing: -0.02em;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+
+/* Big display title in the brand gradient (Sora, tight tracking). */
+.hero h1 {
+  font-family: var(--kovra-font-display);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  background: var(--kovra-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Roomier, calmer tagline. */
+.hero .tagline {
+  font-size: clamp(1.05rem, 1rem + 0.6vw, 1.4rem);
+  line-height: 1.5;
+  color: var(--sl-color-gray-2);
+  max-width: 46ch;
+}
+
+.hero .tagline em {
+  color: var(--kovra-accent-2);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* Emerald glow under the cobra emblem. */
+.hero img {
+  filter: drop-shadow(0 0 2.5rem rgba(16, 185, 129, 0.28));
+}
+
+/* Primary CTA carries the brand gradient; secondary is an emerald outline. */
+.hero a.button[data-variant='primary'] {
+  background: var(--kovra-gradient);
+  border: none;
+  color: #04231b;
+  font-weight: 600;
+}
+
+.hero a.button[data-variant='secondary'] {
+  border-color: color-mix(in srgb, var(--kovra-accent) 45%, transparent);
+  color: var(--kovra-accent-2);
+}
+
+/* ── PDF download button (Design rationale article) ───────────────────── */
+.sl-markdown-content a.cta-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.25rem 0 1rem;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--kovra-accent) 45%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--kovra-accent) 10%, transparent);
+  color: var(--kovra-accent-2);
+  font-weight: 600;
+  font-size: var(--sl-text-sm);
+  text-decoration: none;
+}
+.sl-markdown-content a.cta-pdf:hover {
+  background: var(--kovra-gradient);
+  border-color: transparent;
+  color: #04231b;
+}
+
+/* Discreet inline "PDF" badge (e.g. next to the whitepaper link). */
+.sl-markdown-content a.pdf-inline {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.28rem;
+  background: transparent;
+  color: var(--sl-color-gray-3);
+  font-size: 0.66em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  text-decoration: none;
+  vertical-align: middle;
+}
+.sl-markdown-content a.pdf-inline:hover {
+  color: var(--kovra-accent-2);
+  border-color: color-mix(in srgb, var(--kovra-accent) 45%, transparent);
+}
+
+/* ── Terminal transcripts (command + dimmed output in one box) ─────────────
+ * Convention: a single Expressive Code block, `ansi frame="terminal"
+ * title="macOS" {N}`, holds the command on the marked line(s) {N} and the
+ * program's response below. The response renders dimmed; the marked command
+ * line stays bright — so one box reads as "what you type" + "what you get".
+ * (`title="macOS"` is also the seam for future Windows/Linux OS tabs.)
+ */
+.expressive-code .frame.is-terminal pre code .ec-line .code span {
+  color: #66758a !important; /* output: dimmed */
+}
+.expressive-code .frame.is-terminal pre code .ec-line.mark .code span {
+  color: #e9eef3 !important; /* command: bright */
+  font-weight: 500;
+}
+/* Neutralize the default mark highlight (row background + left accent bar) so
+ * the command line reads as plain bright text, not a highlighted row. EC draws
+ * both from these variables; zero them only inside terminal frames. */
+.expressive-code .frame.is-terminal {
+  --ec-tm-markBg: transparent;
+  --ec-tm-markBrdCol: transparent;
+}
+
+/* ── "bioprove" — the coined term for an attended biometric check ──────────
+ * Used as a highlighted verb wherever a biometric validation happens. Every
+ * occurrence is `<span class="bioprove">bioprove</span>`; the explanation lives
+ * here (centralized) and appears as a hover tooltip, so no per-use text. */
+.sl-markdown-content .bioprove {
+  position: relative;
+  color: var(--kovra-accent-2);
+  font-weight: 600;
+  text-decoration: underline dotted
+    color-mix(in srgb, var(--kovra-accent) 55%, transparent);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+.sl-markdown-content .bioprove::after {
+  content: 'kovra’s word for an attended biometric check (Touch ID on macOS, Windows Hello on Windows) that authorizes a sensitive action.';
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.55rem);
+  transform: translateX(-50%) translateY(0.25rem);
+  width: max-content;
+  max-width: 17rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.45rem;
+  background: #0c1411;
+  border: 1px solid color-mix(in srgb, var(--kovra-accent) 40%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: var(--sl-color-gray-2);
+  font-size: var(--sl-text-xs);
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 30;
+}
+.sl-markdown-content .bioprove:hover::after,
+.sl-markdown-content .bioprove:focus::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* "Coming soon" placeholder shown in the Windows OS tab until L13 lands. */
+.sl-markdown-content .os-soon {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5ch;
+  min-height: 5.5rem;
+  padding: 1.4rem 1.2rem;
+  text-align: center;
+  color: var(--sl-color-gray-3);
+  background: #0c1411;
+  border: 1px dashed rgba(212, 175, 55, 0.32);
+  border-radius: 0.5rem;
+  font-size: var(--sl-text-sm);
+}
+.sl-markdown-content .os-soon strong {
+  color: var(--kovra-accent-2);
+  font-weight: 600;
+}
+
+/* ── Flow diagrams (Security model → Flows) ───────────────────────────── */
+.sl-markdown-content .flow-diagram {
+  margin: 1.1rem 0 1.9rem;
+  padding: 1rem 1.1rem 0.6rem;
+  background: #0c1411;
+  border: 1px solid rgba(212, 175, 55, 0.16);
+  border-radius: 0.6rem;
+}
+.flow-diagram svg { width: 100%; height: auto; display: block; }
+.flow-diagram .box { fill: #111827; stroke: #2b3a4f; stroke-width: 1.5; }
+.flow-diagram .box.core { fill: rgba(16, 185, 129, 0.15); stroke: #10b981; }
+.flow-diagram .box.ok { fill: rgba(16, 185, 129, 0.1); stroke: #34d399; }
+.flow-diagram .box.no { fill: rgba(251, 113, 133, 0.08); stroke: #fb7185; }
+.flow-diagram .t {
+  fill: #e9eef3; font-family: 'Sora Variable', sans-serif; font-weight: 600;
+  font-size: 13px;
+}
+.flow-diagram .s { fill: #9aa6b2; font-family: 'Inter Variable', sans-serif; font-size: 11px; }
+.flow-diagram .e { stroke: #46586d; stroke-width: 1.6; fill: none; }
+.flow-diagram .e.val { stroke: #34d399; stroke-width: 2; }
+.flow-diagram .e.no { stroke: #fb7185; stroke-dasharray: 5 4; }
+.flow-diagram .el { fill: #aeb9c5; font-family: 'Inter Variable', sans-serif; font-size: 10.5px; }
+.flow-diagram .el.val { fill: #34d399; }
+.flow-diagram .el.no { fill: #fb7185; }
+.flow-diagram .bound {
+  fill: rgba(212, 175, 55, 0.04); stroke: rgba(212, 175, 55, 0.45);
+  stroke-width: 1.2; stroke-dasharray: 5 4;
+}
+.flow-diagram .bl {
+  fill: #d4af37; font-family: 'Inter Variable', sans-serif; font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.flow-diagram .e.tok { stroke: #d4af37; stroke-dasharray: 6 4; }
+.flow-diagram .el.tok { fill: #d4af37; }
+.flow-diagram .lane { stroke: #243041; stroke-width: 1.2; stroke-dasharray: 3 5; fill: none; }
+.flow-diagram .badge { fill: var(--kovra-accent); }
+.flow-diagram .badge-t {
+  fill: #04231b; font-family: 'Sora Variable', sans-serif; font-weight: 700;
+  font-size: 11px;
+}
+.flow-diagram .lane-h { fill: rgba(16, 185, 129, 0.08); stroke: #2b3a4f; stroke-width: 1.5; }

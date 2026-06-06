@@ -1,0 +1,86 @@
+---
+title: TOTP codes
+description: Custody a TOTP seed in the vault and produce one-time codes on demand — the seed is never revealed.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A **TOTP enrollment** lets kovra custody the shared seed behind a time-based
+one-time-password (the 2FA codes from an authenticator app) and produce the
+current 6-digit code on demand. The **seed is sealed like any other secret and is
+never revealed** — only the derived code is ever printed.
+
+## Enroll a seed
+
+`kovra add --totp` reads a seed from a hidden prompt or stdin — a base32 string or
+a full `otpauth://` URI. It never touches argv:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra add secret:dev/app/totp --totp
+Added dev/app/totp (Medium).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+In the [vault listing](/concepts/vault/) the entry shows a typed **mode** of
+`totp:<algorithm>` (e.g. `totp:sha1`) rather than `literal`, so you can tell at a
+glance it's an enrollment and not a raw value.
+
+## Produce a code
+
+`kovra code` prints the current code for an enrollment — and only the code, never
+the seed:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra code secret:dev/app/totp
+278165
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Producing a code is treated like a reveal: for a `high` or `prod` enrollment you
+must <span class="bioprove">bioProve</span> it and it's
+audited; `low`/`medium` print directly.
+
+### Scripting
+
+When a script needs a code that won't expire mid-use, `--min-validity` (`-m`)
+guarantees the returned code has more than *N* seconds of life left, and forces
+plain non-interactive output (the bare code, no countdown):
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra code secret:dev/app/totp -m 5
+278165
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+If the current window has fewer than *N* seconds left, kovra waits for the next
+window and returns that code instead — so the value you get is always usable.

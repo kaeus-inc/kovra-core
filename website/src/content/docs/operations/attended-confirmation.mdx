@@ -1,0 +1,54 @@
+---
+title: Attended confirmation
+description: Gate any action — not just a secret — behind a human’s biometric approval, using kovra’s confirmation broker.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`kovra confirm` exposes kovra's approval broker as a **standalone primitive**. It
+asks a human to <span class="bioprove">bioProve</span> a described action and **exits `0` if approved**, non-zero if
+denied or timed out — so any trusted app or script can gate its own action behind
+a real human, the same way a secret reveal is gated.
+
+It is **secret-independent**: it needs no vault and no master key. It just opens
+the broker, shows your description as the authoritative prompt, and reports the
+verdict through its exit code.
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra confirm "Promote build 1.2.3 to staging"
+Approval required: Promote build 1.2.3 to staging
+Approve at the biometric prompt, or (file broker) run `kovra approve --list` then `kovra approve <id>` in another terminal. Waiting…
+Approved.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+## Gate your own action
+
+Because the verdict is an exit code, wiring it into a script is one line:
+
+```bash
+if kovra confirm "Deploy to production"; then
+  ./deploy.sh
+else
+  echo "Denied — not deploying."
+fi
+```
+
+`--ttl <seconds>` bounds how long it waits before **failing safe to a denial**
+(default 120s).
+
+:::caution[The description is trusted text]
+The prompt headline is shown **verbatim** and is treated as trusted caller text —
+it's what the human is approving. **Never** feed it untrusted or LLM-generated
+input, or you'd let a caller write the very words used to mislead the approver.
+:::

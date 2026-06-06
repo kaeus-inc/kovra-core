@@ -1,0 +1,37 @@
+[package]
+name = "kovra-native-macos"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "macOS LocalAuthentication (Touch ID) Confirmer for kovra (free core, [host]-validated)."
+readme = "README.md"
+keywords = ["kovra", "touch-id", "biometric", "macos"]
+categories = ["authentication", "os::macos-apis"]
+
+[dependencies]
+kovra-core = { workspace = true }
+
+# The native LocalAuthentication binding is macOS-only. On every other target the
+# crate still compiles (a no-op stub `Biometric`), so non-macOS CI can build the
+# whole workspace. `core` never depends on this crate — injection points the other
+# way (spec §14.1, §17 L8 `[host]`; CLAUDE.md rule 4/5: this is free-core, not enterprise).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
+    "std",
+    "NSString",
+    "NSError",
+] }
+objc2-local-authentication = { version = "0.3.2", default-features = false, features = [
+    "std",
+    "LAContext",
+    "LAError",
+    "block2",
+] }
+block2 = "0.6"
+# `diskutil` shell-out timeout for the removable-media Formatter (KOV-40, [host]).
+# Same crate the cloud providers use for bounded subprocess calls (§6.3).
+wait-timeout = "0.2"

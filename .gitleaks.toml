@@ -1,0 +1,28 @@
+# gitleaks config for the PUBLIC kovra repo (and the private publish leak-scan).
+#
+# Extends the gitleaks default ruleset and allowlists a small, explicit set of
+# SYNTHETIC test fixtures that ship in the open subset — they are fake values
+# used by tests, never real secrets. Each entry is justified below. Do NOT
+# broaden this to whole source trees; add only specific, reviewed fixtures.
+#
+# This file is published to the public repo root, so the public CI leak-scan
+# (gitleaks-action) and the private publish-time scan use the same allowlist.
+
+title = "kovra public leak-scan config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic test fixtures in the open subset (not real secrets)"
+# RFC 6238 TOTP test vector (base32 of '12345678901234567890') used in
+# crates/core/src/totp.rs unit tests.
+regexes = [
+  '''GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ''',
+]
+# The hooks test (crates/cli/tests/hooks.rs) deliberately plants a fake private
+# key to assert the pre-commit secret scanner blocks it (KOV-19). The whole test
+# file is a fixture for the scanner itself.
+paths = [
+  '''crates/cli/tests/hooks\.rs''',
+]

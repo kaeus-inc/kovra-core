@@ -1,0 +1,89 @@
+---
+title: Agent scope
+description: The capability boundary that lets an AI agent use secrets without seeing the sensitive ones.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Agent scope** is the idea at the heart of kovra: the boundary that lets an AI
+coding agent *use* your secrets without *seeing* the sensitive ones.
+
+When you wire kovra into Claude Code (or any MCP client), the agent doesn't get
+your vault. It gets a **scope** — a capability that says exactly what this session
+can address and do. Everything the agent asks flows through one policy decision in
+kovra's core; the agent never makes that decision itself.
+
+## Scope is enforced *first*
+
+A coordinate outside the session's scope is **unaddressable** — it doesn't exist
+for that channel. kovra doesn't resolve the secret and *then* deny it; the secret
+is simply never surfaced. That's defense in depth: even a hijacked or
+prompt-injected agent can't reach what the scope excludes, because those secrets
+were never in its reach to begin with.
+
+## Scope is defined on operation axes
+
+Crucially, scope is **not** "no prod for the agent" — a blunt environment ban
+would break legitimate diagnose and deploy flows. Instead it's defined on three
+axes:
+
+- **Operation** — what the caller may do with a value:
+ - `metadata` — list / status / fingerprint. No value is touched.
+ - `inject` — deliver a value *through* an operation into a child process; the
+ value never returns to the caller's context.
+ - `reveal` — return plaintext *into* the caller's context (the guarded path).
+- **Project / environment filters** — which projects and environments are in
+ scope (either *any*, or an explicit allow-list).
+
+How that scope is set depends on the channel: `kovra setup` writes an agent's
+scope into the project's `.mcp.json` (the `KOVRA_MCP_ENVIRONMENTS` /
+`KOVRA_MCP_PROJECTS` keys), while the [governed ssh-agent](/guides/ssh-agent/)
+reads its own scope from an **`agent.toml`** at the vault root. See
+[Configuration](/reference/configuration/) for both.
+
+## The metadata / inject / reveal split
+
+This split is why an agent can be useful and safe at the same time:
+
+- It can freely read **metadata** — *that* a secret exists, its coordinate, its
+ [sensitivity](/concepts/sensitivity/) — and reason about your project.
+- It can **inject** secrets into the commands it runs through the wrapper, so the
+ command works with the real value — but that plaintext never lands in the
+ model's context window.
+- It can **reveal** a value into its context only for the narrow case the policy
+ allows: a non-`prod`, non-`high` secret that you explicitly marked
+ `revealable`. Your `high` / `prod` / `inject-only` secrets are never revealable
+ to the agent — full stop.
+
+## Origin matters for `prod`
+
+kovra also tracks **who initiated** a request — `agent` or `human`. It weighs
+differently for the riskiest path: pulling `prod` plaintext into a context is
+allowed only when a **human** initiates a deliberate reveal at the CLI, never
+when an **agent** asks. The convenience an agent gets never extends to exfiltrating
+production secrets.
+
+## In practice
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra setup
+Vault ready; project `my-app`.
+Updated .mcp.json (register the kovra MCP server).
+Updated CLAUDE.md (insert/update the kovra conventions block).
+Setup complete. Review CLAUDE.md and .mcp.json, then reload your agent to pick up the MCP server.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+After that, the agent sees scoped metadata and can run commands through the
+wrapper. The plaintext of your sensitive secrets stays in the vault, on your
+machine, behind the policy — exactly where you can still *use* it.

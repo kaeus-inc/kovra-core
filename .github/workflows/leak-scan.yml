@@ -1,0 +1,57 @@
+name: Leak scan
+
+# Defence-in-depth backstop for the PUBLIC kovra repo (ADR-0003). The publish
+# pipeline already leak-scans before snapshotting; this re-checks on every push
+# in case a future publish ever regresses. Self-contained — does not reference
+# any private tooling. Uses the gitleaks *binary* directly (mirroring the
+# private leak-scan.sh), not gitleaks-action, so the security backstop never
+# depends on a third-party action's licensing — gitleaks-action requires a paid
+# license on org-owned repos, which would silently red the check.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  leak-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: No enterprise/ paths
+        run: |
+          if git ls-files | grep -E '(^|/)enterprise/'; then
+            echo "::error::enterprise/ path present in the public repo"; exit 1
+          fi
+          echo "ok: no enterprise/ paths"
+
+      - name: No Confidential-classified files
+        run: |
+          if grep -rilE '^[[:space:]]*classification:[[:space:]]*Confidential' . \
+               --exclude-dir=.git; then
+            echo "::error::Confidential-classified file present in the public repo"; exit 1
+          fi
+          echo "ok: no Confidential files"
+
+      - name: Install gitleaks
+        run: |
+          VER=8.30.1
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: gitleaks (secret scan)
+        run: |
+          # `gitleaks dir` scans a non-git tree and exits non-zero on findings.
+          # Use the overlaid .gitleaks.toml so CI and the publish pipeline agree.
+          if [ -f .gitleaks.toml ]; then
+            gitleaks dir . -c .gitleaks.toml --no-banner --redact
+          else
+            gitleaks dir . --no-banner --redact
+          fi
+          echo "ok: no secrets"

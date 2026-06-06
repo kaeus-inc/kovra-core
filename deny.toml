@@ -1,0 +1,85 @@
+# cargo-deny configuration — KOV-28 (Phase 4 security hardening).
+#
+# Supply-chain gate, run in CI via `EmbarkStudios/cargo-deny-action` over four
+# checks: advisories · bans · licenses · sources. Stable toolchain only (no
+# nightly), so it composes with the existing macOS stable gate (spec §18.5).
+#
+# This file is itself security-relevant: loosening any `deny` below widens the
+# supply-chain attack surface. Treat changes here as reviewed code.
+
+[graph]
+# Evaluate the whole dependency graph, including the per-OS keyring backends
+# (apple-native / windows-native / secret-service) so a Windows/Linux advisory
+# is caught even though the reference platform is macOS.
+all-features = true
+
+# ---- Security advisories (RUSTSEC) ----
+[advisories]
+version = 2
+# A yanked dependency is a release the author pulled — treat as a hard failure.
+yanked = "deny"
+# Any entry added here MUST carry a comment with the RUSTSEC id, the reason,
+# and a removal condition.
+ignore = [
+    # RUSTSEC-2023-0071 — "Marvin Attack": a timing sidechannel in the `rsa`
+    # crate (v0.9.x) during RSA decryption (PKCS#1 v1.5). No fixed upstream
+    # release exists — the mitigation is still in progress, so there is nothing
+    # to upgrade to. `rsa` enters only transitively via kovra-core: `age`
+    # (ssh-rsa recipient support), the asymmetric keypair feature (KOV-12), and
+    # `ssh-key` (KOV-13). The attack is a *remote decryption-timing oracle* — an
+    # attacker submitting many ciphertexts and measuring decryption latency.
+    # kovra is a local, single-user dev secrets manager: it exposes no network
+    # RSA-decryption oracle; RSA is used for encrypt-to-recipient and local
+    # operations on the user's own keys. The vulnerable code path is not
+    # reachable by a remote attacker in kovra's threat model.
+    # Removal condition: drop this entry once `rsa` ships a patched release
+    # (watch RUSTSEC-2023-0071) and `cargo update -p rsa` pulls it in, or once
+    # the `rsa` dependency is removed from the tree.
+    "RUSTSEC-2023-0071",
+]
+
+# ---- Bans / duplicate versions ----
+[bans]
+# The dependency tree legitimately carries duplicate transitive versions
+# (rand, getrandom, thiserror, the windows-* shims). Surface them without
+# failing the gate. The security-critical crates (chacha20poly1305, secrecy,
+# zeroize, argon2, age, keyring, blake3) are verified single-version by review
+# (KOV-28); a future duplicate of one of those should be promoted to "deny".
+multiple-versions = "warn"
+# A `*` version requirement defeats reproducible builds — forbid it. The
+# internal workspace crates are path deps, allowed explicitly below.
+wildcards = "deny"
+allow-wildcard-paths = true
+
+# ---- Licenses ----
+[licenses]
+version = 2
+# Permissive licenses present across the dependency tree, plus the first-party
+# BUSL-1.1. Adding a license here is a deliberate act — it asserts the license
+# is compatible with shipping kovra.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+    "BUSL-1.1",
+]
+confidence-threshold = 0.9
+# The kovra crates are unpublished (`publish = false`); skip them — their
+# BUSL-1.1 license governs the product, not the crates.io license gate.
+private = { ignore = true }
+
+# ---- Sources ----
+[sources]
+# Every dependency must come from crates.io — no unknown registries, no git
+# deps (a git dep is an unpinned, unaudited supply-chain entry).
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

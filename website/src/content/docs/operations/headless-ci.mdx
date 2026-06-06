@@ -1,0 +1,72 @@
+---
+title: Headless & CI
+description: Run kovra without a keyring or a biometric prompt — in CI, containers, and other unattended environments.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+kovra's defaults assume a human at a Mac: the master key in the **Keychain**, and
+sensitive actions gated behind a <span class="bioprove">bioProve</span>. Unattended environments — CI runners,
+containers — have neither. kovra runs there too, in **passphrase mode**.
+
+## Passphrase mode (no keyring)
+
+Set `KOVRA_PASSPHRASE` and kovra stops using the OS keyring entirely: it derives
+the 256-bit master key with **Argon2id** from your passphrase plus a stable,
+non-secret salt stored next to the vault (`kdf.salt`). Initialize the vault once
+to create the salt, then every later run derives the same key:
+
+```bash
+export KOVRA_PASSPHRASE="$CI_VAULT_PASSPHRASE"   # from your CI secret store
+kovra init
+```
+
+Keep the passphrase in your CI provider's secret store — it is the only thing that
+unlocks the vault, so treat it like the master key it derives.
+
+## Confirmations without biometrics
+
+A <span class="bioprove">bioProve</span> needs a person. On a host with no biometric hardware, kovra falls back to
+the **file broker**: a gated command waits and prints instructions, and a second
+session approves it. Force the channel explicitly in scripts:
+
+```bash
+export KOVRA_CONFIRMER=file   # never attempt a biometric prompt
+```
+
+This has a deliberate consequence: **`high`/`prod` actions can't be fully
+automated** — they still require a human, by design. So in CI:
+
+- **`low`/`medium` secrets inject with no prompt** — the everyday CI path.
+- **`high`/`prod` injection** still needs a human at the file broker — there's no
+  unattended bypass for `kovra run`. (The out-of-band token is a different thing:
+  it authorizes unattended consumption of a [sealed package](/guides/sharing/),
+  not a `run` injection.)
+
+The Web UI's launch gate can be skipped for dev/CI/containers with `--no-confirm`
+(or `KOVRA_UI_NO_CONFIRM=1`).
+
+## A GitHub Actions sketch
+
+```yaml
+jobs:
+  test:
+    runs-on: [self-hosted, macos]
+    env:
+      KOVRA_PASSPHRASE: ${ secrets.KOVRA_VAULT_PASSPHRASE }
+      KOVRA_CONFIRMER: file
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests with injected secrets
+        run: kovra run --env dev -- npm test
+```
+
+`kovra run --env dev` resolves the committed `.env.refs` and injects the `dev`
+(non-`high`) values straight into `npm test` — nothing written to disk, argv, or
+the log.
+
+:::caution[Treat the passphrase as the key]
+In passphrase mode the vault is only as strong as `KOVRA_PASSPHRASE`. Use a long,
+random value from your secret store, scope it to the jobs that need it, and rotate
+it like any other root credential.
+:::

@@ -1,0 +1,124 @@
+---
+title: USB exchange
+description: Bootstrap a kovra-less machine over a USB stick — and understand why every step of the round-trip is shaped the way it is.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A [sealed package](/guides/sharing/) assumes the recipient already runs kovra and
+has a key to seal to. The **USB exchange** kit handles the harder case: a
+**destination machine with no kovra at all** — a freshly imaged laptop, an
+air-gapped box, a machine you can't reach over the network. You can't send it a
+normal package, because there's nothing there to open one.
+
+This page walks the whole round-trip from the user's side and explains **why each
+step is shaped the way it is**.
+
+:::note[macOS only, today]
+The removable-media rail (`exchange`) is macOS-only for now. Every destructive or
+sensitive step asks for a <span class="bioprove">bioProve</span>, and production secrets are
+excluded. The
+[collaboration diagram](/security/flows/#bootstrapping-a-new-machine-usb-exchange)
+shows the same round-trip visually.
+:::
+
+## The flow, step by step
+
+It's a **round-trip** between two machines — **origin** (where the secrets live)
+and **destination** (the new machine) — carried by a USB stick, with one thing
+held back from the stick entirely: the access token.
+
+### 1. Origin — build the bootstrap USB
+
+**Do this:** insert a spare USB stick into the **origin** machine and run:
+
+```bash
+kovra exchange init
+```
+
+Omit `--device` and kovra lets you pick interactively from the eligible external
+devices; pass `--device /dev/diskN` to name one. <span class="bioprove">bioProve</span>, and
+kovra formats the stick and drops two things onto it: the `kovra` binary and an
+`install.sh`.
+
+**Why it's done this way.** The destination has nothing, so the USB has to carry
+the tool itself. Formatting **erases** the device, so kovra accepts **only
+removable external media** — a fixed, internal, or boot disk is refused outright,
+and the erase is gated by a <span class="bioprove">bioProve</span>. You can't bootstrap a machine by accidentally
+wiping your own drive.
+
+### 2. Destination — install kovra and generate its identity
+
+**Do this:** unplug the USB, carry it to the **new machine**, plug it in, and run
+the installer it carries:
+
+```bash
+sh /Volumes/KOVRA/install.sh
+```
+
+It installs kovra, creates a portable vault, **generates the destination's own
+recipient keypair**, and writes only the **public** key (`recipient.pub`) back onto
+the USB.
+
+**Why it's done this way.** This is the key idea. The destination's **private key
+is born on the destination and never leaves it** — only its public half travels
+back. So when the origin seals secrets, it seals them to a key whose private half
+it has never seen: the bytes can only be opened by the machine that generated the
+key, and the exchange never moves a private key across the stick.
+
+### 3. Origin — seal the scope to that key
+
+**Do this:** unplug the USB, bring it **back to the origin**, plug it in, and seal
+an environment:
+
+```bash
+kovra exchange seal --env dev
+```
+
+kovra reads `recipient.pub` from the stick, seals the scope, writes
+`package.kovra` (and an `unpack.sh`) onto the USB, and **prints the access token
+to your screen** — not to the stick. Copy that token to hand over separately.
+
+**Why it's done this way.** As with packages, **production is refused**, and the
+secrets are sealed to the destination's public key. The **token is deliberately
+kept off the USB**: the stick now holds an encrypted package nobody can open
+without the destination's private key, *and* the sensitive entries additionally
+need the token, which travels a different way. Whoever finds the USB gets tooling
+and an unopenable blob.
+
+### 4. Destination — register the token and open
+
+**Do this:** carry the USB **back to the destination** and plug it in. Separately,
+get the access token to that machine the way you chose (a message, a password
+manager, in person) and save it to a file — then register it and open:
+
+```bash
+kovra exchange register-token --from token.txt
+kovra exchange open
+```
+
+`open` uses the registered token for the sensitive entries and prompts the
+destination's vault passphrase. The new machine now holds the shared secrets under
+its own kovra vault — bootstrapped from nothing but a USB stick and a
+separately-delivered token.
+
+**Why it's done this way.** The token is read from a file or stdin — **never from
+the command line** (it's a bearer credential, so it stays out of argv and shell
+history). Opening uses the destination's **custodied** identity in memory, and the
+token gates the sensitive entries — so even on the destination, the most sensitive
+values needed a credential that never rode along on the stick.
+
+### Why two physical trips
+
+The round-trip — origin → destination (tooling) → origin (public key) →
+destination (package) — exists so the origin always seals to a **real,
+destination-owned key**. There's no moment where a private key, or a usable copy
+of the secrets, exists anywhere it shouldn't.
+
+## What this guarantees
+
+- A **kovra-less machine** can be brought into the fold with no network.
+- The destination's **private key never leaves the destination**.
+- The **USB alone is not authorization** — its package is sealed to the
+ destination's key, and the sensitive entries also need the off-stick token.
+- **Production never travels**, and every erase or sensitive step asks for a <span class="bioprove">bioProve</span>.

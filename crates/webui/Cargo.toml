@@ -1,0 +1,35 @@
+[package]
+name = "kovra-webui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "kovra on-demand loopback Web UI — sensitivity-governed vault visualization; ships the `kovra-ui` container entrypoint."
+readme = "README.md"
+keywords = ["kovra", "secrets", "web-ui", "axum"]
+categories = ["command-line-utilities", "visualization"]
+
+[lib]
+path = "src/lib.rs"
+
+# The container entrypoint (L11). Runs the Web UI inside Docker, reading the
+# master key from a Docker secret in tmpfs (I9) — never from the host keyring,
+# which a container cannot reach.
+[[bin]]
+name = "kovra-ui"
+path = "src/bin/kovra-ui.rs"
+
+[dependencies]
+kovra-core = { workspace = true }
+axum = "0.8.1"
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "net", "macros", "signal", "time"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+rand = "0.8.5"
+zeroize = { version = "1.8.2", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+tower = { version = "0.5.2", features = ["util"] }

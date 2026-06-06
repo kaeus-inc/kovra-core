@@ -1,0 +1,50 @@
+[package]
+name = "kovra-ffi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "PyO3 bindings exposing the kovra core to Python (L9 MCP server)."
+# NOT published to crates.io (KOV-49 decision #1): this crate ships as a maturin
+# wheel to PyPI, not as a source crate. crates.io would reject the cdylib anyway.
+publish = false
+
+[lib]
+# `cdylib` builds the Python extension module (the wheel maturin ships).
+# `rlib` lets `cargo test`/sibling crates link the bindings as a normal lib so
+# the Rust-side unit tests run without a Python interpreter loading the module.
+name = "kovra_ffi"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Open-core boundary (spec §15/§20): the FFI depends only on the free core and
+# wrapper, never on `enterprise/`.
+kovra-core = { workspace = true }
+kovra-wrapper = { workspace = true }
+# L6 provider (open core, BSL): the Azure Key Vault `SecretProvider`, injected
+# into the resolver's `SchemeRouter` so an MCP-driven run can materialize an
+# `azure-kv://` reference with the host's ambient `az` identity (§6.2). `core`
+# stays free of it — the FFI is a wiring point, like the CLI.
+kovra-providers-azure = { workspace = true }
+kovra-providers-aws = { workspace = true }
+# `abi3-py312` targets the stable ABI (Python 3.12+), so one wheel loads on any
+# 3.12+ interpreter. `extension-module` is feature-gated (see [features]) so a
+# plain `cargo build`/`cargo test` links libpython normally — only maturin turns
+# it on for the shipped wheel.
+pyo3 = { version = "0.27", default-features = false, features = ["abi3-py312", "macros"] }
+# Errors: `thiserror` for the library-style binding error (matches the core/CLI
+# convention — `thiserror` in libs, `anyhow` in bins).
+thiserror = "2"
+# Server-side value generation (`generate`). Pinned 0.8 to match the CLI (edition
+# 2024 reserves `gen`, which rand 0.9 reintroduces).
+rand = "0.8"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+
+[dev-dependencies]
+# A throwaway TempDir stands in for ~/.vaults; records are sealed with a fixed
+# test key (no OS keyring) so the policy routing is tested deterministically.
+tempfile = "3"

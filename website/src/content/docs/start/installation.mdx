@@ -1,0 +1,137 @@
+---
+title: Installation
+description: Install kovra on macOS — via Homebrew, from source, plus the MCP server for AI agents.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+kovra is two pieces:
+
+- **`kovra`** — the Rust CLI and the local vault (this is the core tool).
+- **`kovra-mcp`** — an optional Python package that exposes kovra to AI agents
+ over [MCP](https://modelcontextprotocol.io). You only need it to use kovra
+ from Claude Code (or another MCP client).
+
+:::note[Platform support]
+**macOS on Apple Silicon is the reference platform** — native biometric
+authentication and Keychain integration. Windows (Windows Hello + Credential
+Manager) and Linux are on the roadmap, behind the same traits; the Windows tabs
+below mark what's coming. The examples assume macOS today.
+:::
+
+## Install the CLI
+
+### Homebrew (recommended)
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % brew install kaeus-inc/kovra/kovra
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> A scoop/winget package is on the way.</p>
+
+</TabItem>
+</Tabs>
+
+This installs the `kovra` binary and puts it on your `PATH`. Verify it:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra --version
+kovra 0.7.0
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> A scoop/winget package is on the way.</p>
+
+</TabItem>
+</Tabs>
+
+:::caution[Distribution channels are being finalized]
+The Homebrew tap, the `cargo install` crate, and the PyPI package are being
+published in the run-up to the public launch. If a channel above isn't live yet,
+use **[from source](#from-source)** below — it works today.
+:::
+
+### From source
+
+You need a recent Rust toolchain (kovra targets the 2024 edition). Clone the repo:
+
+```bash
+git clone https://github.com/kaeus-inc/kovra-core.git
+cd kovra-core
+```
+
+Then build the release binary:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/kovra-core % cargo build --release
+   Compiling kovra-core v0.7.0 (…/kovra-core/crates/core)
+   Compiling kovra-cli v0.7.0 (…/kovra-core/crates/cli)
+    Finished `release` profile [optimized] target(s) in 1m 47s
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The native biometric + Credential Manager rails aren't built yet.</p>
+
+</TabItem>
+</Tabs>
+
+The `kovra` binary lands in `target/release/kovra`. Copy it somewhere on your
+`PATH`:
+
+```bash
+cp target/release/kovra /usr/local/bin/
+```
+
+## Install the MCP server (optional)
+
+The MCP server lets an AI agent see scoped metadata and run commands through
+kovra's wrapper, without ever receiving the plaintext of your sensitive secrets.
+It ships as the `kovra-mcp` Python package and provides a `kovra-mcp` command.
+
+```bash
+# once published to PyPI:
+pipx install kovra-mcp
+# or, with uv:
+uv tool install kovra-mcp
+```
+
+You normally don't run `kovra-mcp` by hand — it's an MCP **stdio server** that
+your agent launches. [`kovra setup`](/start/quick-start/#4-wire-up-claude-code)
+registers it for your project. Just confirm it's on your `PATH`:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % which kovra-mcp
+/Users/you/.local/bin/kovra-mcp
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Use <code>where.exe kovra-mcp</code> once Windows packages ship.</p>
+
+</TabItem>
+</Tabs>
+
+## Next
+
+Head to the **[Quick start](/start/quick-start/)** to initialize your vault,
+store your first secret, and inject it into a process.

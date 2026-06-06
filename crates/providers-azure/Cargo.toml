@@ -1,0 +1,30 @@
+# kovra-providers-azure — the Azure Key Vault `SecretProvider` (spec §6.2).
+#
+# Open core under BSL (same license as the rest of the free core). `core` must
+# NOT depend on this crate (the resolver knows only the `SecretProvider` trait,
+# §6.1); the CLI/FFI inject this impl into a `SchemeRouter`. This crate is the
+# only place that knows about Azure / the `az` CLI.
+[package]
+name = "kovra-providers-azure"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Azure Key Vault SecretProvider for kovra (azure-kv:// references via the az CLI)."
+readme = "README.md"
+keywords = ["kovra", "azure", "key-vault", "secrets"]
+categories = ["command-line-utilities", "api-bindings"]
+
+[dependencies]
+kovra-core = { workspace = true }
+# Secret-bearing intermediate (the `az` stdout) is held in a zeroizing buffer
+# until handed to `core`'s `SecretValue`; never logged, never to disk (I7/I12).
+zeroize = { version = "1.8.2", features = ["derive"] }
+# Enforce the per-invocation timeout (§6.3) on the real `az` subprocess in the
+# [host] runner — std has no wait-with-timeout, so a hung `az` would otherwise
+# block the wrapper forever.
+wait-timeout = "0.2"
+
+[dev-dependencies]

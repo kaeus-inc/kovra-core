@@ -1,0 +1,116 @@
+---
+title: The vault
+description: kovra's encrypted local store — per-project or global, with a master key custodied in the OS keychain.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The **vault** is where kovra keeps your secrets. It's a local, encrypted store —
+nothing leaves your machine unless you explicitly share it.
+
+## Encryption at rest
+
+Every entry is encrypted with **ChaCha20-Poly1305** under a per-vault **master
+key**. You never handle that key directly: it's custodied in the **OS keychain**
+(the macOS Keychain on the reference platform), and kovra loads it only to
+encrypt and decrypt. Secret-bearing memory is **zeroized** after use, so a value
+doesn't linger in process memory.
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra init
+Initialized vault at ~/.vaults (OS keyring).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+:::note[Disaster recovery]
+The master key is the root of trust for the whole vault — if you lose it, the
+encrypted entries are unrecoverable. `kovra key export` writes an encrypted,
+passphrase-protected backup (a standard `age` blob) you can store in a password
+manager; `kovra key import` restores it. The plaintext key never lands in a file.
+:::
+
+## Global vs. project vaults
+
+kovra resolves secrets against two scopes:
+
+- A **global** vault — your personal, machine-wide secrets.
+- A **project** vault — secrets scoped to one repository.
+
+By default a project vault **overrides** the global vault at the *exact*
+coordinate: if both define `secret:dev/db/password`, the project's wins. Most
+commands take a `--project <name>` flag to target a specific project vault
+instead of the global one.
+
+When you need to bypass the override and read the global value explicitly, use
+the **global scope selector** in the coordinate itself:
+
+```text
+secret://global/dev/db/password # resolve only against the global vault
+```
+
+See **[Coordinates](/concepts/coordinates/)** for the full address grammar.
+
+## What's stored — and what isn't
+
+A vault entry holds the encrypted value plus **metadata**: its coordinate, its
+[sensitivity tier](/concepts/sensitivity/), an optional description, and flags
+like whether it's a reference or opted into agent-side reveal. Listing and audit
+operate on this metadata — they never touch the value:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra list
+┌────────┬─────────────────┬─────────────┬─────────┬─────────────┐
+│ ORIGIN ┆ COORDINATE      ┆ SENSITIVITY ┆ MODE    ┆ FINGERPRINT │
+╞════════╪═════════════════╪═════════════╪═════════╪═════════════╡
+│ global ┆ dev/app/api-key ┆ medium      ┆ literal ┆ c8a476b5    │
+├╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ global ┆ dev/db/password ┆ medium      ┆ literal ┆ 73c128b4    │
+└────────┴─────────────────┴─────────────┴─────────┴─────────────┘
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra audit
+TIMESTAMP             ACTION  COORDINATE       SENS    ORIGIN  FPR  RESULT
+2026-06-05T19:29:26Z  create  dev/db/password  medium  human   -    created
+2026-06-05T19:29:51Z  reveal  dev/app/api-key  medium  human   -    revealed
+2026-06-05T19:32:44Z  inject  dev/db/password  medium  human   -    injected
+3 event(s).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+Not every entry is a literal secret. An entry can instead be a **reference** — a
+pointer to a value in a cloud provider (`azure-kv://`, `aws-sm://`) that resolves
+at runtime under your own identity — or a **typed credential** like a TOTP
+enrollment or an asymmetric keypair, where the raw seed or private half is never
+revealed. Those are covered in their own sections.

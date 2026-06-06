@@ -1,0 +1,288 @@
+---
+title: Quick start
+description: Initialize a vault, store a secret, inject it into a process, and wire up Claude Code — in five minutes.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+This walks you from an empty machine to a secret that your tools can *use* but
+never *see*. It assumes you've [installed kovra](/start/installation/).
+
+Every command box has an **OS selector** in its header. Choose macOS or Windows
+once and every box on the page follows — your choice is remembered next time.
+macOS on Apple Silicon is the reference platform; Windows is on the roadmap, so
+its boxes preview the intended experience.
+
+## 1. Initialize the vault
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra init
+Initialized vault at ~/.vaults (OS keyring).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+This creates the vault registry and a per-vault **master key**, custodied in the
+OS keychain (the macOS Keychain or Windows Credential Manager). The master key
+encrypts every entry at rest; you never handle it directly.
+
+## 2. Store a secret
+
+Secrets are addressed by a **coordinate** of the form
+`secret:<env>/<component>/<key>`. kovra reads the value from a **hidden prompt** —
+it never appears in argv or your shell history:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra add secret:dev/db/password
+Added dev/db/password (Medium).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+(Scripting? Pipe the value in with `kovra add secret:dev/db/password --stdin`.)
+With no `--sensitivity` flag a secret is born **medium**; you can set a tier and a
+description explicitly:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra add secret:dev/app/api-key --description "App API key"
+Added dev/app/api-key (Medium).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+List what's stored — metadata only, never values:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra list
+┌────────┬─────────────────┬─────────────┬─────────┬─────────────┐
+│ ORIGIN ┆ COORDINATE      ┆ SENSITIVITY ┆ MODE    ┆ FINGERPRINT │
+╞════════╪═════════════════╪═════════════╪═════════╪═════════════╡
+│ global ┆ dev/app/api-key ┆ medium      ┆ literal ┆ c8a476b5    │
+├╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ global ┆ dev/db/password ┆ medium      ┆ literal ┆ 73c128b4    │
+└────────┴─────────────────┴─────────────┴─────────┴─────────────┘
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+The **fingerprint** is a short, truncated hash — enough to confirm "same value as
+before", never enough to reconstruct it. Filter with `kovra list --env dev` or
+`--component app`.
+
+If you ever need a value back at a terminal, `kovra show` reveals exactly one
+coordinate. An ordinary secret prints straight away:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra show secret:dev/db/password
+(revealing dev/db/password to stdout — ephemeral, not stored)
+dev-db-pw-•••••
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+A `high` or `prod` secret first asks for a <span class="bioprove">bioProve</span> (Touch
+ID on macOS, Windows Hello on Windows); see
+[step 3](#3-inject-secrets-into-a-process). The most protected secrets
+(`inject-only`) are never revealed at all — they can only be injected.
+
+## 3. Inject secrets into a process
+
+Tools shouldn't read the vault directly — they get values through **injection**.
+You describe the mapping once in a committable `.env.refs` file that holds
+**addresses, not values**:
+
+```ini
+#.env.refs — safe to commit; contains no secret values.
+project = my-app
+
+# Vault-backed, parameterized by --env (${ENV} is substituted at run time).
+DATABASE_URL=secret:${ENV}/db/password
+API_KEY=secret:${ENV}/app/api-key
+
+# Passthrough from the environment, with a fallback if unset.
+LOG_LEVEL=${env:LOG_LEVEL | info}
+
+# A plain literal (not a secret).
+PORT=8080
+```
+
+Then run any command with the resolved values injected straight into the child
+process — nothing is written to disk, argv, or shell history:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra run --env dev -- your-app
+app started · DATABASE_URL=14 chars · API_KEY set=yes · PORT=8080
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+With `--env dev`, `${ENV}` resolves to `dev`, so `DATABASE_URL` is read from
+`secret:dev/db/password`. The values land in your app's environment and nowhere
+else.
+
+### Production adds two guards
+
+Switch the environment to `prod` and the same command is held to a higher bar — a
+`prod` secret is born `high`, and a `high`/`prod` injection is governed by **two
+independent guards**: it must target an **allowlisted executable**, and it pauses
+for an <span class="bioprove">bioProve</span>. Run it against an un-reviewed program
+and kovra refuses, by design:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra run --env prod -- your-app
+Error: `your-app` is not on the executor allowlist; high/prod injection refused
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+Allowlist the reviewed executable with `--allow` and <span class="bioprove">bioProve</span>
+(one confirmation covers every secret in the run):
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra run --env prod --allow./deploy --./deploy
+# Touch ID prompt — approve to inject prod/db/password, prod/app/api-key
+deploying with DATABASE_URL=12 chars, API_KEY set=yes
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+:::note[The convenient path is the safe one]
+Dev secrets inject with no friction; production can't be injected into a program
+the agent (or you) didn't review, and never without a deliberate confirmation.
+That asymmetry is the whole point.
+:::
+
+Not sure what your repo needs? Let kovra propose an `.env.refs` by scanning your
+source for env-var references (it reads variable *names* only — never a value):
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra scaffold --out .env.refs
+Wrote 2 proposed coordinate(s) to .env.refs — review before use.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+## 4. Wire up Claude Code
+
+Onboard the current repo so an AI agent can *use* your secrets without *seeing*
+the sensitive ones:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra setup
+Vault ready; project `my-app`.
+Updated .mcp.json (register the kovra MCP server).
+Updated CLAUDE.md (insert/update the kovra conventions block).
+Setup complete. Review CLAUDE.md and .mcp.json, then reload your agent to pick up the MCP server.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+This registers the kovra MCP server in `./.mcp.json` and adds a conventions
+block to `./CLAUDE.md`. From then on, Claude Code sees scoped **metadata** — that
+a secret exists, its sensitivity, its coordinate — and can run commands through
+the wrapper, but the plaintext of your `high` / `prod` / inject-only secrets
+never enters the model's context.
+
+Preview the changes without writing anything with `kovra setup --dry-run`.
+
+## Where to go next
+
+You now have the full loop: store → inject → delegate to an agent, with the
+sensitive plaintext never leaving the vault. From here:
+
+- **[Overview](/concepts/)** — the concepts map: coordinates, sensitivity tiers,
+ agent scope, and the `.env.refs` contract.
+- **[How it works](/concepts/how-it-works/)** — the everyday flows end to end, at
+ a high level.
+- **[Secrets in the age of AI Agents](/security/rationale/)** — kovra's whitepaper: the problem, the tensions, the
+ solution, and an honest account of kovra's risks and limitations.

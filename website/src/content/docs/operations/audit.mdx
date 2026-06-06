@@ -1,0 +1,61 @@
+---
+title: The audit trail
+description: Every access and operation, recorded — coordinates, sensitivity, timestamps, and origin, never a value.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Whatever the outcome of a request — allowed, confirmed, denied, unaddressable —
+kovra records it. `kovra audit` queries that trail. It answers "what happened to
+my secrets, and who asked?" **without becoming a new place a secret can leak**:
+the trail holds coordinates, sensitivity, timestamps, and origin — **never a
+value, and never a fingerprint complete enough to confirm a guess**.
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra audit
+TIMESTAMP             ACTION   COORDINATE           SENS    ORIGIN  FPR  RESULT
+2026-06-05T19:29:26Z  create   dev/db/password      medium  human   -    created
+2026-06-05T19:29:51Z  reveal   dev/app/api-key      medium  human   -    revealed
+2026-06-05T19:32:07Z  timeout  prod/stripe/api-key  high    human   -    timeout
+2026-06-05T19:32:29Z  reveal   prod/stripe/api-key  high    human   -    revealed
+2026-06-05T19:32:44Z  inject   dev/db/password      medium  human   -    injected
+5 event(s).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+## The columns
+
+| Column | Meaning |
+| --- | --- |
+| `TIMESTAMP` | When it happened (UTC, RFC-3339). |
+| `ACTION` | `create`, `reveal`, `inject`, `timeout`, … |
+| `COORDINATE` | The `env/component/key` touched — never the value. |
+| `SENS` | The secret's sensitivity at the time. |
+| `ORIGIN` | `human` or `agent` — who initiated it. |
+| `FPR` | A short truncated fingerprint when relevant; never the full hash. |
+| `RESULT` | What the request resolved to (`revealed`, `injected`, `denied`, `timeout`, …). |
+
+## Filtering
+
+Narrow the trail to what you're investigating:
+
+```bash
+kovra audit --coordinate dev/db/password   # one exact coordinate
+kovra audit --env prod                      # everything in an environment
+kovra audit --action reveal                 # only reveals
+kovra audit --since 2026-06-01T00:00:00Z    # a time window
+```
+
+`--component` and `--until` are available too. Because every entry carries the
+**origin**, the trail also shows exactly what an agent did on your behalf — and,
+just as usefully, what it was refused.

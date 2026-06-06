@@ -1,0 +1,30 @@
+# kovra-providers-aws — the AWS Secrets Manager `SecretProvider` (spec §6.2).
+#
+# Open core under BSL (same license as the rest of the free core). `core` must
+# NOT depend on this crate (the resolver knows only the `SecretProvider` trait,
+# §6.1); the CLI/FFI inject this impl into a `SchemeRouter`. This crate is the
+# only place that knows about AWS / the `aws` CLI.
+[package]
+name = "kovra-providers-aws"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "AWS Secrets Manager SecretProvider for kovra (aws-sm:// references via the aws CLI)."
+readme = "README.md"
+keywords = ["kovra", "aws", "secrets-manager", "secrets"]
+categories = ["command-line-utilities", "api-bindings"]
+
+[dependencies]
+kovra-core = { workspace = true }
+# Secret-bearing intermediate (the `aws` stdout) is held in a zeroizing buffer
+# until handed to `core`'s `SecretValue`; never logged, never to disk (I7/I12).
+zeroize = { version = "1.8.2", features = ["derive"] }
+# Enforce the per-invocation timeout (§6.3) on the real `aws` subprocess in the
+# [host] runner — std has no wait-with-timeout, so a hung `aws` would otherwise
+# block the wrapper forever.
+wait-timeout = "0.2"
+
+[dev-dependencies]

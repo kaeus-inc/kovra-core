@@ -1,0 +1,19 @@
+# Code owners for the public kovra repo (ADR-0003, KOV-48).
+# Every PR requires owner review; security-relevant paths are called out so they
+# can never be changed unreviewed. Pair with branch protection that REQUIRES
+# CODEOWNERS review + the leak-scan check before merge.
+#
+# Requires the @kaeus-inc/kovra-maintainers team to exist in the org (created as a
+# go-live task); until then GitHub ignores the unknown owner. CLAUDE.md is a
+# private-repo artifact and is not published here; it is governed in the private repo.
+
+# Default owner for everything
+*                       @kaeus-inc/kovra-maintainers
+
+# Security boundary — always owner-reviewed
+/LICENSE                @kaeus-inc/kovra-maintainers
+/NOTICE                 @kaeus-inc/kovra-maintainers
+/SECURITY.md            @kaeus-inc/kovra-maintainers
+/.gitleaks.toml         @kaeus-inc/kovra-maintainers
+/.github/               @kaeus-inc/kovra-maintainers
+/crates/core/           @kaeus-inc/kovra-maintainers

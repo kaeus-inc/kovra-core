@@ -1,0 +1,26 @@
+[package]
+name = "kovra-wrapper"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "kovra subprocess wrapper — injects resolved secrets into a child process's environment without leaking plaintext (I6/I7)."
+readme = "README.md"
+keywords = ["secrets", "kovra", "subprocess", "environment"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+kovra-core = { workspace = true }
+thiserror = "2.0.18"
+zeroize = { version = "1.8.2", features = ["derive"] }
+
+[target.'cfg(unix)'.dependencies]
+# Observe the parent process (getppid + the macOS proc-path shim) for the I16
+# confirmation prompt's requesting-process line. Lightweight FFI only — no heavy
+# crates like `sysinfo`. Already present transitively in the lock.
+libc = "0.2.186"
+
+[dev-dependencies]
+tempfile = "3.27.0"

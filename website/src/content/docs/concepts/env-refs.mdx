@@ -1,0 +1,108 @@
+---
+title: The.env.refs contract
+description: The committable file that maps your env-var names to coordinates — addresses, never values.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`.env.refs` is how you wire vault secrets into your processes. It maps each local
+environment-variable name to a **source** — most often a vault
+[coordinate](/concepts/coordinates/). Because it holds **addresses, not values**,
+it is safe to commit to your repo. The vault holds the values; this file holds
+only where to find them.
+
+```ini
+#.env.refs — safe to commit; contains no secret values.
+project = my-app
+
+# Vault-backed, parameterized by --env (${ENV} is substituted at run time).
+DATABASE_URL=secret:${ENV}/db/password
+API_KEY=secret:${ENV}/app/api-key
+
+# Passthrough from the execution environment, with a fallback if unset.
+LOG_LEVEL=${env:LOG_LEVEL | info}
+
+# A plain literal (not a secret).
+PORT=8080
+```
+
+Run a command with everything resolved and injected into the child process —
+nothing written to disk, argv, or shell history:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra run --env dev -- your-app
+app started · DATABASE_URL=14 chars · API_KEY set=yes · PORT=8080
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+## Line types
+
+| Form | Meaning |
+|------|---------|
+| `NAME=secret:<env>/<comp>/<key>` | A **vault coordinate**. May use `${ENV}`. An optional `\| fallback` applies if it doesn't resolve. |
+| `NAME=${env:VAR}` | A **passthrough** from the execution environment. Supports `${env:VAR \| fallback}`. |
+| `NAME=literal` | A **literal** value (not a secret), e.g. `PORT=8080`. |
+| `project = <name>` | Links this file to a **project vault** (resolution targets it). |
+
+## Rules that keep it safe
+
+- **No values, ever.** The file is addresses only — that's why committing it is
+ safe and why a leaked `.env.refs` exposes nothing.
+- **The only interpolation** is `${ENV}` inside a coordinate's environment
+ segment, and the `${env:NAME}` passthrough form. **Cross-variable
+ interpolation is rejected** — you can't compose one secret inside another
+ variable's string, because that composed string would get logged and nullify
+ the policy. Composing secrets is the application's job, not the contract's.
+- **Resolution is a single ordered pass** over the file.
+
+## Let kovra write it for you
+
+You don't have to author `.env.refs` by hand. `kovra scaffold` scans your repo's
+source for environment-variable *references* and proposes a starting file — it
+reads variable **names** only, never a value (it never reads a `.env*` file):
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra scaffold --out .env.refs
+Wrote 2 proposed coordinate(s) to .env.refs — review before use.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+And `kovra doctor` (alias `kovra lint`) validates it: every coordinate resolves,
+no orphan vault entries, no `prod` fallback, references reported by status —
+coordinates and status only, never a value.
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra doctor --env dev
+doctor: clean — no findings (env `dev`).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "kovra-ffi"
+description = "PyO3 bindings exposing the kovra core to Python (L9 MCP server)."
+requires-python = ">=3.12"
+license = { text = "BUSL-1.1" }
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3.12",
+    "Private :: Do Not Upload",
+]
+dynamic = ["version"]
+
+[tool.maturin]
+# Build the abi3 wheel: enable the pyo3 extension-module feature only here, so
+# the Rust gate (`cargo build`/`cargo test`) stays interpreter-agnostic.
+module-name = "kovra_ffi"
+features = ["extension-module"]

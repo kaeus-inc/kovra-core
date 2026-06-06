@@ -1,0 +1,78 @@
+[package]
+name = "kovra-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Core of kovra — local secrets manager for development: vault, sensitivity policy, providers, and the security invariants."
+readme = "README.md"
+keywords = ["secrets", "vault", "security", "credentials"]
+categories = ["cryptography", "command-line-utilities"]
+
+[dependencies]
+argon2 = "0.5.3"
+blake3 = "1.8.5"
+chacha20poly1305 = { version = "0.10.1", features = ["getrandom"] }
+redb = "4.1.0"
+# L12 `scaffold`: scan a repo's source for env-var references → propose
+# `.env.refs`. `regex` matches the per-language reference patterns; `ignore`
+# (ripgrep's walker) honors `.gitignore` so generated/vendored trees are skipped.
+regex = "1.11"
+ignore = "0.4"
+secrecy = "0.10.3"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+thiserror = "2.0.18"
+zeroize = { version = "1.8.2", features = ["derive"] }
+
+# Asymmetric keys (KOV-12, the `Keypair` modality). All pure-Rust (§14).
+# - `ssh-key`: OpenSSH key generation/encoding (the at-rest + ssh-agent format)
+#   and ed25519 `SshSig` sign/verify.
+# - `ed25519-dalek` / `rsa` + `sha2`: the signing primitives. RSA sign/verify
+#   goes through the `rsa` crate (PKCS#1 v1.5 / SHA-256) because ssh-key 0.6's
+#   own RSA→`rsa` conversion is buggy (passes `p` twice); we reconstruct the
+#   `rsa::RsaPrivateKey` from the raw components in `keypair.rs`.
+# - `age` (ssh feature): encrypt-to-recipient / decrypt for ed25519 keys only
+#   (decision: asymmetric encrypt/decrypt is ed25519-only; RSA is ssh/sign only).
+# - `rand` 0.8 + `ssh-encoding`: RNG (matches the CLI/FFI pin) and the agent
+#   wire-frame encoder. `rand` 0.9 reserves `gen`, broken under edition 2024.
+# ed25519 signing comes through `ssh-key`'s `ed25519` feature (it re-exports the
+# dalek primitives); we never call `ed25519-dalek` directly, so it is not a
+# direct dependency.
+# TOTP (KOV-11, the `Totp` modality): RFC-6238 derivation IN-CRATE on the
+# RustCrypto MAC + hash primitives — deliberately NOT a heavy `totp`/`otpauth`
+# crate (those pull a clock and a wider surface; ours stays pure and is driven
+# by the existing `Clock` trait so `MockClock` yields exact known-answer codes).
+# - `hmac`: the HMAC construction HOTP/TOTP is built on (RFC 4226/6238).
+# - `sha1`: the RFC-6238 default hash (SHA1); SHA256/SHA512 reuse `sha2` (above).
+hmac = "0.12"
+# `oid` gives `Sha1` the `AssociatedOid` impl that RSA PKCS#1 v1.5 needs to emit
+# the DigestInfo prefix for legacy `ssh-rsa` (SHA-1) ssh-agent signatures.
+sha1 = { version = "0.10", features = ["oid"] }
+rsa = { version = "0.9", features = ["sha2"] }
+sha2 = "0.10"
+ssh-key = { version = "0.6", features = ["ed25519", "rsa", "encryption"] }
+ssh-encoding = "0.2"
+age = { version = "0.11", features = ["ssh", "armor"] }
+rand = "0.8"
+
+# OS keyring backend (`[host]`, behind the `Keyring` trait). Pinned to v3,
+# whose `Entry`/`get_secret`/`set_secret` API and platform feature flags are
+# what `OsKeyring` targets (v4 was redesigned around `keyring-core` + separate
+# store crates). Backends are platform-specific; without one the crate is a
+# no-op at runtime — unit tests never touch it (they use `MockKeyring`).
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
+
+[dev-dependencies]
+blake3 = "1.8.5"
+proptest = "1.11.0"
+tempfile = "3.27.0"

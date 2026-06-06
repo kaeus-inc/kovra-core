@@ -1,0 +1,15 @@
+kovra
+Copyright (c) 2026 Kaeus Inc.
+
+This product is licensed under the Business Source License 1.1 (see LICENSE).
+Each version converts to the Apache License, Version 2.0 on its Change Date
+(the fourth anniversary of that version's first publication under the License).
+
+"kovra" and the Kaeus name and logos are trademarks of Kaeus Inc. The license
+does not grant rights to use them except as required to comply with the License.
+
+The published open core comprises the `core`, `cli`, `wrapper`, `agent`, `webui`,
+`providers-*`, `native-*`, and `ffi-python` components and the `mcp` package.
+Premium/enterprise components are licensed separately and are not included here.
+
+For alternative/commercial licensing: info@kaeusanalytics.com

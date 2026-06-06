@@ -1,0 +1,157 @@
+---
+title: Sealed packages
+description: Hand a bundle of non-production secrets to a teammate — and understand, step by step, why each part of the exchange is shaped the way it is.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Say you need to hand your team's `dev` secrets to a new teammate. You *could*
+paste them into a chat — and instantly create a copy that lives forever in a
+message history, a notification, a backup. A **sealed package** does the same job
+without ever creating that copy: it bundles the secrets, encrypts them so only
+that one teammate can open them, and keeps the sensitive ones locked behind a
+second, separate credential.
+
+This page walks the exchange end to end — what each person does, in what order,
+and **why each step is shaped the way it is**. The commands come after, once the
+shape makes sense.
+
+## The flow, step by step
+
+There are two people: **you** (the sender) and your **teammate** (the recipient).
+
+### 1. Your teammate gives you their public key
+
+Before anything is sealed, you need the recipient's **public key** — the public
+half of a [keypair](/guides/keypairs/) whose private half stays in *their* vault.
+They send you the public key; it isn't a secret.
+
+**Why it's done this way.** The package is encrypted *to that key*, so only the
+matching private key can open it. Authorization is anchored to **who the recipient
+is**, not to whoever happens to hold the file. A package that leaks, gets
+forwarded, or is copied off a backup is useless to anyone but the intended
+recipient — there's no shared password to intercept, because there is no password
+at all.
+
+### 2. You seal an environment to that key
+
+You point kovra at an environment (say `dev`) and it seals every secret in it to
+the recipient's key, producing two separate artifacts: the **package** and an
+**access token**.
+
+**Why it's done this way.** Three rules are enforced as it seals, each for a
+reason:
+
+- **Production is refused.** You can't package `prod`. Sharing is for collaborating
+ on `dev`/`staging`; production secrets are never meant to travel through a
+ hand-off, so the tool removes that foot-gun entirely.
+- **Cloud references travel as pointers, never values.** If a secret is a
+ [cloud reference](/guides/references/), the package carries its `azure-kv://` /
+ `aws-sm://` *address*, not the resolved value. Your cloud credentials and the
+ live secret never enter the package — the recipient resolves it later under
+ *their own* identity. You're sharing the intent to access, not the material.
+- **Everything expires.** The package and token carry a time-to-live (24h by
+ default). If either is ever mislaid, the window in which it's useful is bounded.
+
+### 3. You deliver the package and the token over *different* channels
+
+You send the recipient the package one way (email, a shared drive) and the access
+token a **different** way (a separate message, a password manager, in person).
+
+**Why it's done this way.** This is the crux of the design. The package's
+encryption already means only the recipient can open the envelope. The **token is
+a second, independent factor** that gates *unattended* delivery of the `high`
+secrets inside. So:
+
+- Someone who intercepts **only the package** can't open it at all (no private
+ key), and even the recipient can't silently pull its sensitive entries without
+ the token.
+- Someone who intercepts **only the token** has a meaningless bearer string with
+ no package to apply it to.
+
+Splitting "can open the envelope" (the private key) from "may auto-consume the
+sensitive contents" (the token) means no single intercepted artifact is enough.
+
+### 4. Your teammate opens it with their private identity
+
+The recipient opens the package with the private key kovra custodies for them. The
+ordinary secrets import directly; each `high` secret is released **only** if the
+out-of-band token is present — otherwise kovra stops and asks them to <span class="bioprove">bioProve</span> it**, in person.
+
+**Why it's done this way.** The private key is used **in memory only and never
+leaves their vault** — opening a package can't exfiltrate the very identity that
+opens it. And the `high`-secret gate means the most sensitive values always need
+*either* the second channel *or* a live human — never just a file sitting on disk.
+
+## Seal and send
+
+You need the recipient's **ed25519 public key** in a file — either one they sent,
+or the public half of a keypair they custody (`kovra pubkey` prints it):
+
+```bash
+kovra pubkey secret:peer/key > recipient.pub
+```
+
+Then seal the environment. kovra writes the package and the separate access token:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra package --env dev --recipient recipient.pub --out dev.kpkg --token-out dev.token
+Sealed 4 secret(s) from env `dev` → dev.kpkg (expires in 86400s).
+Access token → dev.token (deliver over a SEPARATE channel; it enables unattended consumption).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Send `dev.kpkg` one way and `dev.token` another. Use `--ttl` to shorten the
+expiry, and `--component` to share only part of an environment.
+
+## Open it
+
+The recipient opens the package with their **private** identity — a keypair they
+custody in their own vault (used only in memory, never exported):
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra unpack --in dev.kpkg --identity secret:peer/key --token dev.token
+Imported 4 secret(s) into the global vault.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+If the private key lives in a file rather than the vault, use `--identity-file`
+(or the `KOVRA_RECIPIENT_KEY` environment variable — never argv). **Drop the
+`--token`** and each `high` entry pauses for a <span class="bioprove">bioProve</span>
+instead — the deliberate, human-present path when there's no second channel.
+
+## What this guarantees
+
+- The package is openable by **exactly one identity** — possession isn't access.
+- The **sensitive** entries need a **second channel or a human** — never just the
+ file.
+- **Production never ships** this way, and **cloud-backed secrets** are shared as
+ pointers, not values.
+- Everything **expires**.
+
+## Bootstrapping a brand-new machine
+
+This whole flow assumes the recipient already runs kovra and has a key. To hand
+secrets to a machine that has **no kovra at all** — formatting a USB, installing
+the binary, exchanging keys, and importing — see
+[USB exchange](/guides/usb-exchange/), which automates the round-trip.

@@ -1,0 +1,80 @@
+---
+title: kovra
+description: Secrets your AI coding agents can use but never see. kovra is a local secrets manager that exposes scoped metadata over MCP — the plaintext never enters the model's context.
+template: splash
+hero:
+  title: Secrets your AI agents can use, never see
+  tagline: "<strong>Highly secure convenience.</strong> Point an AI coding agent at your repo and it can read every secret in it. kovra changes that — your agents <em>use</em> your keys, tokens, and passwords through an MCP server, while the plaintext never enters the model's context."
+  image:
+    alt: kovra
+    file: ../../assets/kovra-icon.png
+  actions:
+    - text: Quick start
+      link: /start/quick-start/
+      icon: right-arrow
+      variant: primary
+    - text: How it works with Claude Code
+      link: /start/quick-start/#4-wire-up-claude-code
+      icon: open-book
+      variant: secondary
+    - text: View on GitHub
+      link: https://github.com/kaeus-inc/kovra-core
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+You point an AI coding agent at your repo to move faster — and now it can read
+**every secret in it**: the `.env` files, the keys pasted into terminals, the
+tokens in your shell history. kovra closes that gap. It custodies your secrets in
+an encrypted local vault and lets agents and tools **use** them without ever
+**seeing** them — not in a log, not on disk, not in argv, and **never in an AI
+agent's context**. Every sensitive action waits for you to
+<span class="bioprove">bioProve</span> it — *kovra's word for a one-gesture
+biometric check (Touch ID, Windows Hello)*: **kovra does the work, you authorize
+it.**
+
+<CardGrid stagger>
+	<Card title="Built for AI Agents" icon="seti:robot">
+ kovra's reason for being. Point Claude Code — or any MCP client — at your
+ project and it runs under a **scope**: it sees that a secret *exists*, its
+ coordinate and sensitivity, and can run commands through the wrapper — but
+ the plaintext of your `high` / `prod` / inject-only secrets **never enters
+ the model's context**.
+	</Card>
+	<Card title="Process injection" icon="rocket">
+ `kovra run` resolves an `.env.refs` file (env-var names → *coordinates*,
+ never values) and injects the resolved values straight into a child
+ process. Nothing touches disk, argv, or shell history.
+	</Card>
+	<Card title="Encrypted local vault" icon="seti:lock">
+ Per-project or global. A per-vault master key lives in the OS keychain and
+ encrypts every entry at rest (ChaCha20-Poly1305); secret-bearing memory is
+ zeroized after use.
+	</Card>
+	<Card title="You bioProve, kovra acts" icon="approve-check">
+ Revealing or injecting a sensitive secret — or lowering its protection — asks you
+ to <span class="bioprove">bioProve</span> it (or fall back to your device
+ password). No checklist of commands to run by hand.
+	</Card>
+</CardGrid>
+
+## Where to go next
+
+- **[Installation](/start/installation/)** — get kovra onto your machine.
+- **[Quick start](/start/quick-start/)** — store a secret, inject it into a
+ process, and wire up Claude Code in five minutes.
+- **[Overview](/concepts/)** — the concepts map: coordinates, sensitivity tiers,
+ agent scope, and the `.env.refs` contract.
+- **[How it works](/concepts/how-it-works/)** — the everyday flows end to end, at
+ a high level.
+- **[Secrets in the age of AI Agents](/security/rationale/)** — kovra's
+ whitepaper: the problem, the tensions, the solution, and an honest account of
+ its risks and limitations. <a class="pdf-inline" href="/kovra-design-rationale.pdf" download>PDF</a>
+
+---
+
+<sub>kovra is a product of **Kaeus Inc**. Source-available under the Business
+Source License 1.1; each version converts to Apache-2.0 four years after its
+release.</sub>

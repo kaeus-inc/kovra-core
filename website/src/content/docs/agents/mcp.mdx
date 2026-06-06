@@ -1,0 +1,130 @@
+---
+title: kovra over MCP
+description: How an AI coding agent uses your secrets through kovra's MCP server — what it can see, what it can run, and what it can never read.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+kovra was built for this case first: an **AI coding agent that needs your secrets
+to do real work, but must never read the sensitive ones**. It connects to kovra as
+an [MCP](https://modelcontextprotocol.io/) server, so the agent gets a small set of
+governed tools instead of your vault.
+
+Everything the agent does flows through the **same policy decision** as the CLI and
+the Web UI — the agent never decides what it's allowed to touch. What changes for an
+agent is only *who is asking*: requests carry the `agent` origin and run under a
+[scope](/concepts/agent-scope/), and the policy weighs both.
+
+## Connect it
+
+One command registers the MCP server with your agent and drops a conventions block
+into `CLAUDE.md` so the agent knows how to use it:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra setup
+Vault ready; project `my-app`.
+Updated .mcp.json (register the kovra MCP server).
+Updated CLAUDE.md (insert/update the kovra conventions block).
+Setup complete. Review CLAUDE.md and .mcp.json, then reload your agent to pick up the MCP server.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+`kovra setup` targets Claude Code's `.mcp.json`. With another MCP client, register
+the `kovra-mcp` command in that client's own config and set the same
+`KOVRA_MCP_ENVIRONMENTS` / `KOVRA_MCP_PROJECTS` scope.
+
+From then on, a coding session sees kovra's tools and a list of **scoped metadata** —
+the coordinates it's allowed to address, with their sensitivity — and nothing of the
+values behind them.
+
+## What the agent can do
+
+The tools fall along the three operation axes kovra governs — **metadata**,
+**inject**, and **reveal** — plus the management tools for creating and editing
+secrets. The split is the whole point: an agent can be genuinely useful at the top
+of this list and still be unable to exfiltrate anything at the bottom.
+
+### Read metadata — always safe
+
+The agent can freely learn *that* a secret exists and reason about your project,
+without any value being touched:
+
+- **`list`** — every secret addressable in this session: coordinate, sensitivity,
+ mode, fingerprint, flags. Out-of-scope secrets simply don't appear.
+- **`status`** — the metadata for one coordinate (errors if it isn't addressable).
+- **`fingerprint`** — a short, **truncated** fingerprint of a value. Enough to check
+ "is this the same secret as before?", never enough to reconstruct or confirm a
+ guess.
+
+None of these ever return a value. This is how an agent maps your wiring — which
+services need which keys — without reading a single secret.
+
+### Inject — use a secret without seeing it
+
+This is the everyday path for an agent that needs a real value to run something:
+
+- **`inject_run`** — resolve an inline [`.env.refs`](/concepts/env-refs/) and run a
+ program with the values placed **into the child process's environment**. The
+ plaintext goes to the process, never back into the model's context. The result is
+ `{status, stdout, stderr}` with any vault value **masked** in the output.
+
+Injecting a `high` or `prod` value adds two independent guards: it must target an
+**allowlisted executable**, and it pauses for an <span class="bioprove">bioProve</span>
+(`kovra approve`). An agent can't quietly route a production key into a program it
+wrote itself.
+
+### Reveal — the one narrow, guarded exception
+
+- **`reveal`** — return a plaintext value *into the agent's context*. This is
+ permitted **only** for a secret you explicitly marked revealable that is **non-`prod`
+ and non-`high`**. Everything else — `prod`, `high`, `inject-only` — is **never**
+ returned to an agent, full stop.
+
+So the only thing an agent can ever read back is an ordinary, non-production value you
+deliberately opened up. Your sensitive secrets are not "hard to reveal" to an agent;
+they are **unreachable** by that path.
+
+### Create and manage — writes, never reads
+
+The agent can also help you set secrets up. These tools change the vault but never
+return a value:
+
+- **`set`** — store a literal value. The metadata comes back, not the value. A `prod`
+ secret is **born `high`** automatically.
+- **`generate`** — have kovra generate a strong random value server-side and store it.
+ Only metadata is returned — the value is never exposed, not even once.
+- **`edit_metadata`** — adjust sensitivity, description, the `revealable` flag, or a
+ reference. **Lowering** a secret's sensitivity is separately audited (and at the CLI
+ it takes an attended confirmation).
+- **`delete`** — remove a secret (errors if it isn't addressable in this session).
+
+`generate` is the recommended way for an agent to create credentials: the value
+exists only inside the vault from the very first moment, so there is no window where
+it sits in the model's context.
+
+## What an agent can never do
+
+No matter how a session is steered — including a prompt-injected or hijacked one —
+the policy holds:
+
+- It **cannot read** the plaintext of a `high`, `prod`, or `inject-only` secret.
+- It **cannot reach** anything outside its [scope](/concepts/agent-scope/); those
+ coordinates are *unaddressable*, not merely denied.
+- It **cannot inject** a `high`/`prod` value into a non-allowlisted program, nor
+ without your <span class="bioprove">bioProve</span>.
+- It **cannot fabricate** the confirmation prompt you see — that text is built by
+ kovra from the real request, never from the caller.
+
+For the precise order in which every request is judged, see
+[the decision process](/security/decision/); for the boundary itself, see
+[agent scope](/concepts/agent-scope/).

@@ -1,0 +1,49 @@
+name: Release — Docker (GHCR)
+
+# Builds and pushes the kovra-ui container image to GHCR (KOV-49, Pillar 3):
+#   ghcr.io/kaeus-inc/kovra-ui:<version> and :latest
+# from the repo-root Dockerfile. This is the image `kovra ui --docker` pulls.
+#
+# INERT BY DEFAULT. The build/push job is gated on `KOVRA_PUBLISH_ENABLED ==
+# 'true'`; before go-live (KOV-51) a tag push or dispatch is a no-op. The push
+# uses the built-in GITHUB_TOKEN (no extra secret), so the only gate is the
+# variable. Runs on free GitHub-hosted runners.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    if: ${{ vars.KOVRA_PUBLISH_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive version tag
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push kovra-ui
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/kaeus-inc/kovra-ui:${{ steps.ver.outputs.version }}
+            ghcr.io/kaeus-inc/kovra-ui:latest

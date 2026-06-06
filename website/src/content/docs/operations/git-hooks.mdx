@@ -1,0 +1,53 @@
+---
+title: Git hooks
+description: Install a pre-commit hook that scans staged changes and blocks a commit that would leak a secret.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The surest way to keep a secret out of your history is to never let it be
+committed. `kovra hooks install` drops a **pre-commit hook** into a repo that
+scans the staged diff and **fails the commit on a finding**.
+
+## Install it
+
+Run it inside the repository you want to protect:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra hooks install
+Wrote ./.gitleaks.toml
+Installed the gitleaks pre-commit hook at ./.git/hooks/pre-commit.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+It writes a [gitleaks](https://github.com/gitleaks/gitleaks)-based pre-commit hook
+into `.git/hooks/pre-commit` and a `.gitleaks.toml` config you can tune. From then
+on, every `git commit` scans what you staged; a likely secret aborts the commit
+before it ever enters history.
+
+It won't silently replace a pre-commit hook you already have — re-run with
+`--force` to overwrite an existing one.
+
+## Why a hook *and* the vault
+
+The vault keeps secrets out of your code in the first place, and `.env.refs` holds
+only addresses — but a hook is the backstop for the mistake everyone eventually
+makes: pasting a real value into a file "just for a second." Defense in depth means
+the commit is blocked even when the discipline slips.
+
+## Related checks
+
+- **[`kovra doctor`](/concepts/env-refs/#let-kovra-write-it-for-you)** validates a
+  project's `.env.refs` — wire it into CI to fail a build on drift.
+- **`kovra scaffold`** proposes an `.env.refs` from your source, so you wire
+  secrets by *address*, never by value.

@@ -1,0 +1,289 @@
+---
+title: Tutorial — a real project
+description: A full worked example — take a small service from a plain .env to kovra run with an AI agent, end to end.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The [quick start](/start/quick-start/) is the five-minute tour. This is the longer
+one: we take a small service — call it **billing-api**, with a database and a
+payment API key — from a plain `.env` all the way to running it through kovra and
+letting an AI agent work on it **without ever seeing the sensitive secrets**.
+
+It assumes kovra is [installed](/start/installation/). Every box has an OS
+selector; the outputs shown are from macOS.
+
+## 1. Initialize the vault
+
+From the project directory, create the vault and its master key:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra init
+Initialized vault at ~/.vaults (OS keyring).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+## 2. Move your secrets out of `.env`
+
+Say today the app reads a `.env` with a database password and a payment key. Put
+those values into the vault instead — kovra reads each from a hidden prompt, so it
+never lands in argv or your shell history:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra add secret:dev/db/password
+Added dev/db/password (Medium).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra add secret:dev/app/api-key --description "Stripe test key"
+Added dev/app/api-key (Medium).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Now do the same for production. You don't have to mark these specially — a `prod`
+secret is **born `high`** automatically, so it can never be silently revealed:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra add secret:prod/db/password
+Added prod/db/password (High).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+List what you've stored — metadata only, never values:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra list
+┌────────┬─────────────────┬─────────────┬─────────┬─────────────┐
+│ ORIGIN ┆ COORDINATE      ┆ SENSITIVITY ┆ MODE    ┆ FINGERPRINT │
+╞════════╪═════════════════╪═════════════╪═════════╪═════════════╡
+│ global ┆ dev/app/api-key ┆ medium      ┆ literal ┆ c8a476b5    │
+├╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ global ┆ dev/db/password ┆ medium      ┆ literal ┆ 73c128b4    │
+└────────┴─────────────────┴─────────────┴─────────┴─────────────┘
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+## 3. Replace `.env` with `.env.refs`
+
+Delete the plaintext `.env` and commit a `.env.refs` instead. It maps the same
+variable names to **coordinates** — addresses, not values — so it's safe in git:
+
+```ini
+# .env.refs — safe to commit; no secret values.
+project = billing-api
+
+DATABASE_URL=secret:${ENV}/db/password
+API_KEY=secret:${ENV}/app/api-key
+
+LOG_LEVEL=${env:LOG_LEVEL | info}
+PORT=8080
+```
+
+Not sure what your code needs? `kovra scaffold --out .env.refs` proposes one by
+scanning your source for env-var names (never a value).
+
+## 4. Run your app through kovra (dev)
+
+Start the app *through* kovra. It resolves the `.env.refs`, looks up each value,
+and injects them straight into the process — nothing written to disk, argv, or
+history:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra run --env dev -- your-app
+app started · DATABASE_URL=14 chars · API_KEY set=yes · PORT=8080
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+The app has its real configuration; the secrets were *used*, not *seen*.
+
+## 5. Production: the two guards
+
+Point the same command at `prod` and kovra holds it to a higher bar. A `prod`
+value is `high`, and a `high`/`prod` injection has **two independent guards**: it
+must target a reviewed, **allowlisted** executable, *and* it pauses for a <span class="bioprove">bioProve</span>.
+Run it against an un-reviewed program and kovra refuses, by design:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra run --env prod -- your-app
+Error: `your-app` is not on the executor allowlist; high/prod injection refused
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Allowlist the reviewed deploy tool with `--allow` and approve the prompt — one
+<span class="bioprove">bioProve</span> covers every secret in the run:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra run --env prod --allow ./deploy -- ./deploy
+# bioProve to inject prod/db/password, prod/app/api-key
+deploying with DATABASE_URL=12 chars, API_KEY set=yes
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+## 6. Generate instead of paste
+
+For a brand-new secret — a session signing key — don't invent and paste one. Have
+kovra generate it server-side; the value exists only inside the vault, never on
+your screen:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra generate secret:dev/app/session-secret --length 48
+Generated dev/app/session-secret (48 chars, Medium) — value stored, not shown.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+## 7. Hand it to an AI agent
+
+Now the payoff. Onboard the repo so a coding agent can work with these secrets
+safely:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra setup
+Vault ready; project `billing-api`.
+Updated .mcp.json (register the kovra MCP server).
+Updated CLAUDE.md (insert/update the kovra conventions block).
+Setup complete. Review CLAUDE.md and .mcp.json, then reload your agent to pick up the MCP server.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+From here, your agent can **see that** `dev/db/password` and `dev/app/api-key`
+exist, reason about the project, and **run your tests with the values injected** —
+but the plaintext of your `high`/`prod`/inject-only secrets **never enters its
+context**. Ask it to read the `prod` key and it's refused, full stop. See
+[kovra over MCP](/agents/mcp/) for exactly what the agent can and can't do.
+
+## 8. Keep secrets out of git
+
+Finally, a backstop for the day someone pastes a real value into a file by
+mistake. Install the pre-commit hook:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/billing-api % kovra hooks install
+Wrote ./.gitleaks.toml
+Installed the gitleaks pre-commit hook at ./.git/hooks/pre-commit.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Now a commit that would leak a secret is blocked before it enters history.
+
+## Where you landed
+
+billing-api now keeps **no plaintext secrets in the repo or the environment**.
+Developers and agents run it through kovra; dev is frictionless, production is
+gated and attributable, and the sensitive values never leave the vault. From here:
+
+- **[Sealed packages](/guides/sharing/)** — hand the dev secrets to a teammate.
+- **[Cloud references](/guides/references/)** — back a coordinate with Azure Key
+  Vault or AWS Secrets Manager.
+- **[Secrets in the age of AI Agents](/security/rationale/)** — why it all works
+  the way it does.

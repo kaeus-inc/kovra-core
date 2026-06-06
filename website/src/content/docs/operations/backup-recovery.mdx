@@ -1,0 +1,50 @@
+---
+title: Backup & recovery
+description: Back up the vault master key for disaster recovery — and restore it after losing the keyring.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The master key is the **root of trust** for your whole vault: every entry is
+encrypted under it. If you lose it — a wiped Keychain, a dead machine — the
+encrypted records are **unrecoverable**. `kovra key` makes a portable, encrypted
+backup so that never becomes a catastrophe.
+
+## Export a backup
+
+`kovra key export` asks you to <span class="bioprove">bioProve</span> (the key is the vault's root of trust), then a
+**recovery passphrase** (twice), and writes a standard **ASCII-armored `age`
+blob** — encrypted under that passphrase. The plaintext key never lands in a file.
+
+```bash
+kovra key export --out kovra-master.age
+```
+
+The blob is portable: restore it with `kovra key import`, or decrypt it with **any
+`age` implementation** in a real disaster. Handy variants:
+
+- `--clipboard` — copy the (encrypted) blob to paste into a password manager.
+- `--op` — store it directly in 1Password via the `op` CLI; kovra generates the
+  recovery passphrase and saves it alongside the blob, so there's nothing to
+  memorize.
+
+Store the backup somewhere independent of the machine it came from — a password
+manager, not the same disk.
+
+## Restore
+
+`kovra key import` reads the blob, asks for the recovery passphrase, and puts the
+key back into the OS keyring:
+
+```bash
+kovra key import kovra-master.age
+```
+
+Once restored, the vault unlocks exactly as before.
+
+:::note[Passphrase-mode vaults don't need this]
+In [passphrase mode](/operations/headless-ci/) there is nothing stored to back
+up — the key is recomputed from your `KOVRA_PASSPHRASE` and the vault's
+`kdf.salt`. Your "backup" is simply keeping that passphrase and the `kdf.salt`
+file safe.
+:::

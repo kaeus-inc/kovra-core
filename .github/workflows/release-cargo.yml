@@ -1,0 +1,58 @@
+name: Release — crates.io
+
+# Publishes the kovra crates to crates.io (KOV-49, Pillar 3).
+#
+# INERT BY DEFAULT. This workflow does nothing until go-live (KOV-51): the
+# publish job is gated on the repo variable `KOVRA_PUBLISH_ENABLED == 'true'`
+# AND the `CARGO_REGISTRY_TOKEN` secret, neither of which exists before go-live.
+# A tag push or manual dispatch alone is a no-op. Flip the variable (and add the
+# token) only when the public repo is live and the real publish is intended.
+#
+# Runs on free GitHub-hosted runners (public repo).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-cargo
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: ${{ vars.KOVRA_PUBLISH_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: cargo publish (dependency order)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Inward-out order: every crate must already be on crates.io before a
+          # crate that depends on it can publish. `kovra-ffi` is intentionally
+          # excluded — it ships to PyPI as a maturin wheel, not as a crate. The
+          # binary crate publishes last under its reserved name `kovra`.
+          for crate in \
+            kovra-core \
+            kovra-wrapper \
+            kovra-agent \
+            kovra-native-macos \
+            kovra-providers-azure \
+            kovra-providers-aws \
+            kovra-webui \
+            kovra; do
+            echo "::group::cargo publish -p ${crate}"
+            cargo publish -p "${crate}"
+            # crates.io needs a moment to index a new crate before a dependent
+            # can resolve it from the registry.
+            sleep 30
+            echo "::endgroup::"
+          done

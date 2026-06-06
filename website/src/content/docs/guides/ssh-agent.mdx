@@ -1,0 +1,69 @@
+---
+title: Governed ssh-agent
+description: Let kovra act as your ssh-agent — signing each challenge in memory with a custodied key that never hits disk.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+kovra can stand in as your **ssh-agent**: it speaks the ssh-agent protocol on a
+local socket and signs each authentication challenge **in memory** with a
+custodied [keypair](/guides/keypairs/). The private key never leaves kovra and
+never touches `~/.ssh`.
+
+## Run kovra as the agent
+
+`kovra ssh-agent` runs in the foreground, prints the socket to export, and serves
+until you stop it. It refuses to start if `$SSH_AUTH_SOCK` is already set — it
+never hijacks another agent:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra ssh-agent
+kovra ssh-agent listening on ~/.vaults/agent.sock
+Export it in the shells that should use kovra as their agent:
+
+    export SSH_AUTH_SOCK=~/.vaults/agent.sock
+
+Serving in the foreground — press Ctrl-C to stop.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Export the socket in another shell and SSH normally; each connection's challenge
+is signed by kovra:
+
+```bash
+export SSH_AUTH_SOCK=~/.vaults/agent.sock
+ssh deploy@server
+```
+
+A `high`/`prod` key asks you to <span class="bioprove">bioProve</span> every signature (a quick biometric
+check — Touch ID, Windows Hello) and is audited; `low`/`medium` keys sign
+silently. Which keys the agent will serve is governed by the **scope** in
+`<vault-root>/agent.toml`, the same scope model agents use.
+
+## Or load a key into your existing agent
+
+If you'd rather keep your normal agent, `kovra ssh-add` loads a custodied key into
+the **running** ssh-agent, in memory only — never written to `~/.ssh`. Loading a
+`high`/`prod` key asks you to <span class="bioprove">bioProve</span> it:
+
+```bash
+kovra ssh-add secret:dev/ssh/deploy
+```
+
+## An honest limit
+
+kovra governs the **authentication event** — the moment the key proves your
+identity — not the SSH **session** that opens afterward. Once a connection is
+authorized, what happens inside that session is between you and the remote host.
+kovra makes the key impossible to copy and the *use* of it attributable; it does
+not sit in the middle of your shell.

@@ -1,0 +1,45 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/wrapper",
+    "crates/agent",
+    "crates/cli",
+    "crates/ffi-python",
+    "crates/native-macos",
+    "crates/providers-azure",
+    "crates/providers-aws",
+    "crates/webui",
+]
+
+# Shared package metadata (KOV-49, Pillar 3). Inherited per crate with
+# `field.workspace = true` so version/license/repository stay in lockstep across
+# the workspace and a publish (gated to go-live, KOV-51) carries consistent
+# crates.io metadata. `description`/`readme`/`publish` stay per-crate — each crate
+# describes itself, and `publish` is intentionally NOT workspace-inheritable in
+# Cargo. `kovra-ffi` opts out of publishing (it ships as a maturin wheel to PyPI,
+# not a crate); every other member publishes.
+[workspace.package]
+version = "0.8.0"
+edition = "2024"
+# Actual MSRV: edition 2024 needs 1.85, but the code uses `is_multiple_of`
+# (stable since 1.87), so the honest floor is 1.87.
+rust-version = "1.87"
+license = "BUSL-1.1"
+repository = "https://github.com/kaeus-inc/kovra-core"
+homepage = "https://kovra.sh"
+
+# Internal crate dependencies, declared once with both `path` (used for local
+# builds) and `version` (required by `cargo publish` — a published crate's deps
+# must carry a version, and at publish time the path is dropped in favor of the
+# registry version). Cargo does not allow `version.workspace` inside
+# `[workspace.dependencies]`, so the version is pinned here in one place and must
+# track `[workspace.package].version`.
+[workspace.dependencies]
+kovra-core = { path = "crates/core", version = "0.8.0" }
+kovra-wrapper = { path = "crates/wrapper", version = "0.8.0" }
+kovra-agent = { path = "crates/agent", version = "0.8.0" }
+kovra-native-macos = { path = "crates/native-macos", version = "0.8.0" }
+kovra-providers-azure = { path = "crates/providers-azure", version = "0.8.0" }
+kovra-providers-aws = { path = "crates/providers-aws", version = "0.8.0" }
+kovra-webui = { path = "crates/webui", version = "0.8.0" }

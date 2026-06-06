@@ -1,0 +1,48 @@
+---
+title: Import from 1Password
+description: Copy a credential out of 1Password into the vault as a literal — a one-time copy, governed by kovra from then on.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`kovra import` copies a credential from **1Password** into the vault as a
+**literal** — a one-time copy, not a live link. kovra reads the value once through
+the `op` CLI, seals it, and keeps **no relationship to 1Password** afterward. From
+then on the secret is governed entirely by kovra.
+
+## Import a value
+
+Point `--from` at a 1Password secret reference (`op://<vault>/<item>/<field>`).
+The value is read once and sealed; only the `op://` **address** ever touches argv,
+and the value is never printed:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra import secret:dev/db/password --from op://Personal/db/password
+Imported dev/db/password from 1Password (Medium) — value stored, not shown.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+A `prod` coordinate is born `high`, same as any other secret. This requires the
+**`op` CLI installed and signed in** — kovra shells out to `op read` to fetch the
+value.
+
+## A copy, not a reference
+
+Import is deliberately a **copy**: after it runs, the value lives in your kovra
+vault under kovra's policy, with no dependency on 1Password staying reachable or
+signed in. That's the opposite of a [cloud reference](/guides/references/), which
+keeps the value in the provider and resolves it live each time.
+
+Reach for **import** when you want to bring an existing secret under kovra's
+governance once; reach for a **reference** when the cloud manager should remain the
+source of truth.

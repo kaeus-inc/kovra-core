@@ -1,0 +1,14 @@
+# Keep the kovra-ui image build context small and reproducible. The build only
+# needs the Rust workspace (Cargo manifests + crates/ sources); everything below
+# is irrelevant to `cargo build -p kovra-webui`.
+.git
+target
+website
+docs
+sandbox
+scripts
+**/node_modules
+**/__pycache__
+*.vault
+.env
+.env.refs

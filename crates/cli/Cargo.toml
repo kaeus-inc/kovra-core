@@ -1,0 +1,40 @@
+# Published to crates.io under the reserved name `kovra` (KOV-49 decision #2);
+# the workspace member path stays `crates/cli`. `cargo install kovra` installs
+# the `kovra` binary.
+[package]
+name = "kovra"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "kovra — a local secrets manager for development, exposed over MCP for AI coding agents. Custodies keys/passwords/tokens and delivers them to processes without leaking plaintext."
+readme = "README.md"
+keywords = ["secrets", "vault", "mcp", "cli", "credentials"]
+categories = ["command-line-utilities", "cryptography"]
+
+[[bin]]
+name = "kovra"
+path = "src/main.rs"
+
+[dependencies]
+kovra-core = { workspace = true }
+kovra-wrapper = { workspace = true }
+kovra-agent = { workspace = true }
+kovra-native-macos = { workspace = true }
+kovra-providers-azure = { workspace = true }
+kovra-providers-aws = { workspace = true }
+kovra-webui = { workspace = true }
+tokio = { version = "1.43.0", features = ["rt-multi-thread", "net", "macros", "signal", "time"] }
+clap = { version = "4.5.51", features = ["derive", "env"] }
+anyhow = "1.0.100"
+rpassword = "7.4.0"
+rand = "0.8.5"
+serde_json = "1.0.150"
+crossterm = "0.29.0"
+comfy-table = "7.2.2"
+zeroize = { version = "1.8.2", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"

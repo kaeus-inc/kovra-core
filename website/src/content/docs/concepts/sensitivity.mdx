@@ -1,0 +1,113 @@
+---
+title: Sensitivity tiers
+description: How protective kovra is with each secret — low, medium, high, and inject-only — and what the prod environment adds on top.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Every secret carries a **sensitivity tier**. The tier decides *how* a value may
+be delivered — directly, only after you approve, or never to your eyes at all.
+
+## The four tiers
+
+| Tier | Delivery |
+|------|----------|
+| `low` | Direct delivery + audit. |
+| `medium` | Direct delivery + audit + a visible notification. |
+| `high` | **Mandatory attended confirmation** (biometric / `kovra approve`) before delivery. |
+| `inject-only` | **Never revealed.** Injected into a child process only. |
+
+Set a tier when you create a secret, and change it later with `kovra edit`:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra add secret:dev/app/api-key --sensitivity high
+Added dev/app/api-key (High).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+Lowering it again is a guarded **downgrade** — macOS shows a biometric (Touch ID)
+prompt before it applies:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra edit secret:dev/app/api-key --sensitivity medium
+# high → medium is a downgrade: approve the Touch ID prompt to continue
+Edited dev/app/api-key.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+`inject-only` is the strongest everyday tier: the value can flow *through* an
+injection into a process that needs it, but it is never returned to your terminal,
+a UI, or an agent — there is no "show me this" for an `inject-only` secret.
+
+## Lowering a tier is a guarded act
+
+Raising protection is free. **Lowering** it — say `high` → `medium` — is an
+audited **downgrade** that requires an attended confirmation before it applies.
+You can't quietly strip a secret's protection.
+
+## `prod` is an environment, not a tier
+
+A common point of confusion: **`prod` is not a sensitivity tier.** It's an
+*environment* — the first segment of a [coordinate](/concepts/coordinates/). It
+interacts with sensitivity in two specific ways:
+
+1. **A `prod` secret is born `high`.** When you create a secret whose environment
+ is `prod`, kovra forces its tier to `high` at birth — it can never be silently
+ revealed.
+2. **`prod` plaintext never enters an AI agent's context.** Even a `revealable`,
+ even a downgraded `prod` secret is refused on the agent channel. Only a
+ deliberate, human-initiated reveal at the CLI can surface `prod` plaintext.
+
+So `prod` is an extra floor on top of the tiers, tied to *where* the secret lives
+rather than *how protective* you marked it.
+
+## Two independent gates
+
+When a secret is delivered, kovra applies two **separate** checks. Keeping them
+distinct is what lets a deliberately-downgraded `prod` secret inject smoothly
+while still being contained:
+
+- **The confirmation gate** is **sensitivity-only**. A `high` secret requires a <span class="bioprove">bioProve</span> before it's revealed or injected; `low` /
+ `medium` / `inject-only` injection proceeds without a prompt. This gate does
+ **not** look at the environment.
+- **The allowlist gate** is for **`high` or `prod`** injection. The executable
+ that receives the value must be on the **executor allowlist** — a containment
+ enforced by the wrapper, independent of the confirmation prompt. This is *where*
+ the value is allowed to go, regardless of whether a prompt fired.
+
+The result: a downgraded `prod` secret injects **without** a biometric prompt
+(its tier is no longer `high`) but still **only into an allowlisted executable**
+(it's still `prod`).
+
+## How tiers meet each surface
+
+The same secret is delivered differently depending on who's asking
+([agent scope](/concepts/agent-scope/) covers this in full):
+
+- **CLI** (you, attended) — the full range, with `high` gated by a <span class="bioprove">bioProve</span> and
+ `inject-only` still never revealed.
+- **Web UI** (loopback) — never renders `high` / `inject-only` plaintext into the
+ page; those reveal via the CLI.
+- **MCP** (the agent's channel) — never reveals `high` / `prod` / `inject-only`
+ plaintext, and only ever reveals a non-`prod`, non-`high` secret that was
+ explicitly opted into reveal.

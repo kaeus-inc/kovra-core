@@ -1,0 +1,88 @@
+---
+title: Cloud references
+description: Store a pointer to a value in Azure Key Vault or AWS Secrets Manager — kovra resolves it at runtime under your own identity, and never stores the value.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A **reference** is a vault entry that holds a *pointer* to a value living in a
+cloud secret manager — not the value itself. kovra resolves it **at runtime, under
+your own cloud identity**, and never copies the plaintext into the vault. Two
+providers ship today:
+
+- **Azure Key Vault** — `azure-kv://<vault-name>/<secret-name>`
+- **AWS Secrets Manager** — `aws-sm://<secret-id>`
+
+## Add a reference
+
+`kovra add --reference` stores the pointer. There's no value to prompt for:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra add secret:dev/db/url --reference 'azure-kv://my-keyvault/db-url'
+Added dev/db/url (Medium).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+In a listing, a reference shows a **mode** of `reference` and its **pointer** in
+place of a fingerprint — so you can see exactly where it resolves, with no value
+on screen:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra list
+┌────────┬──────────────┬─────────────┬───────────┬─────────────────────────────────────┐
+│ ORIGIN ┆ COORDINATE   ┆ SENSITIVITY ┆ MODE      ┆ FINGERPRINT                         │
+╞════════╪══════════════╪═════════════╪═══════════╪═════════════════════════════════════╡
+│ global ┆ dev/db/url   ┆ medium      ┆ reference ┆ → azure-kv://my-keyvault/db-url     │
+├╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ global ┆ prod/app/jwt ┆ high        ┆ reference ┆ → aws-sm://prod/app/jwt-signing-key │
+└────────┴──────────────┴─────────────┴───────────┴─────────────────────────────────────┘
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> The same model on Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+A `prod` reference is still born `high` — the environment floor applies to the
+pointer just as it would to a literal.
+
+## How a reference resolves
+
+When a referenced coordinate is injected (via [`kovra run`](/concepts/env-refs/)
+or an agent), kovra calls the provider **with your credentials** and streams the
+value straight into the child process — it is never written to the vault, a file,
+or your context. The same [policy decision](/security/decision/) governs the
+delivery; the only difference from a literal is *where the bytes come from*.
+
+This keeps the source of truth in your cloud secret manager while still giving you
+one coordinate namespace, one policy, and one audit trail across literal and
+cloud-backed secrets.
+
+## References in shared packages
+
+When you [seal a package](/guides/sharing/) for a peer, references travel as
+**pointers, never resolved**. The recipient imports the pointer and materializes
+the value later under *their own* provider identity — your credentials are never
+shared, and the secret is never decrypted into the package.
+
+## Reference vs. import
+
+A reference stays **live** — it always resolves the current cloud value. If you
+instead want a **one-time copy** captured into the vault (no ongoing link to the
+source), see [Import from 1Password](/guides/import/).
