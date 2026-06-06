@@ -22,9 +22,13 @@ use serde_json::{Map, Value, json};
 use crate::commands;
 use crate::context::Ctx;
 
-/// The canonical conventions block — single source of truth, compiled in so the
-/// CLI and the shipped template never drift.
-pub const CONVENTIONS: &str = include_str!("../../../templates/kovra-conventions.md");
+/// The canonical conventions block, compiled in so the CLI and the shipped
+/// template never drift. The repo-root `templates/kovra-conventions.md` is the
+/// source of truth; this crate keeps a byte-identical copy under
+/// `crates/cli/templates/` so the file is inside the published crate tarball
+/// (`cargo publish` only packages paths within the crate). The drift guard test
+/// below keeps the copy in lockstep with the root canonical.
+pub const CONVENTIONS: &str = include_str!("../templates/kovra-conventions.md");
 
 const BEGIN: &str = "<!-- kovra:begin -->";
 const END: &str = "<!-- kovra:end -->";
@@ -210,6 +214,23 @@ mod tests {
         assert!(CONVENTIONS.contains(END));
         assert!(CONVENTIONS.contains("kovra run"));
         assert!(CONVENTIONS.contains(".env.refs"));
+    }
+
+    /// Drift guard: the in-crate template copy (compiled into `CONVENTIONS` and
+    /// packaged with the crate) must stay byte-identical to the repo-root
+    /// canonical `templates/kovra-conventions.md`. Mirrors the mcp package's
+    /// `test_conventions.py`.
+    #[test]
+    fn crate_template_matches_root_canonical() {
+        let root = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../templates/kovra-conventions.md"
+        ))
+        .expect("read repo-root canonical templates/kovra-conventions.md");
+        assert_eq!(
+            CONVENTIONS, root,
+            "crates/cli/templates/kovra-conventions.md drifted from the root canonical"
+        );
     }
 
     #[test]
