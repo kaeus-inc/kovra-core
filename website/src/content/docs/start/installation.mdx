@@ -45,7 +45,7 @@ This installs the `kovra` binary and puts it on your `PATH`. Verify it:
 
 ```ansi frame="terminal" title="zsh" {1}
 ~ % kovra --version
-kovra 0.7.0
+kovra 0.8.0
 ```
 
 </TabItem>
@@ -56,11 +56,16 @@ kovra 0.7.0
 </TabItem>
 </Tabs>
 
-:::caution[Distribution channels are being finalized]
-The Homebrew tap, the `cargo install` crate, and the PyPI package are being
-published in the run-up to the public launch. If a channel above isn't live yet,
-use **[from source](#from-source)** below — it works today.
-:::
+### crates.io
+
+Any platform with a Rust toolchain can install the CLI straight from crates.io —
+no tap required:
+
+```ansi frame="terminal" title="zsh" {1}
+~ % cargo install kovra
+```
+
+This builds and installs the `kovra` binary into `~/.cargo/bin`.
 
 ### From source
 
@@ -78,8 +83,8 @@ Then build the release binary:
 
 ```ansi frame="terminal" title="zsh" {1}
 ~/kovra-core % cargo build --release
-   Compiling kovra-core v0.7.0 (…/kovra-core/crates/core)
-   Compiling kovra-cli v0.7.0 (…/kovra-core/crates/cli)
+   Compiling kovra-core v0.8.0 (…/kovra-core/crates/core)
+   Compiling kovra v0.8.0 (…/kovra-core/crates/cli)
     Finished `release` profile [optimized] target(s) in 1m 47s
 ```
 
@@ -105,10 +110,9 @@ kovra's wrapper, without ever receiving the plaintext of your sensitive secrets.
 It ships as the `kovra-mcp` Python package and provides a `kovra-mcp` command.
 
 ```bash
-# once published to PyPI:
-pipx install kovra-mcp
-# or, with uv:
-uv tool install kovra-mcp
+pip install kovra-mcp
+# or, isolated on your PATH:
+pipx install kovra-mcp     # or: uv tool install kovra-mcp
 ```
 
 You normally don't run `kovra-mcp` by hand — it's an MCP **stdio server** that
