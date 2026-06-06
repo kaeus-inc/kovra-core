@@ -21,4 +21,4 @@ pnpm-debug.log*
 .DS_Store
 
 # whitepaper byproduct (the PDF is served; the HTML is just an intermediate)
-public/kovra-design-rationale.html
+public/secrets-in-the-age-of-ai-agents.html
