@@ -30,6 +30,9 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Linux build deps (libdbus for the keyring crate)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       - name: Install uv + maturin
         run: pipx install uv maturin
 
