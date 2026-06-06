@@ -1,13 +1,17 @@
 name: Release — PyPI
 
 # Builds and publishes the Python artifacts (KOV-49, Pillar 3):
-#   - kovra-ffi : the PyO3 abi3 wheel (built by maturin)
-#   - kovra-mcp : the MCP server sdist + wheel (built by uv)
+#   - kovra-ffi : the PyO3 abi3 wheel, built per-platform (Linux x86_64,
+#                 macOS arm64, macOS x86_64) + an sdist fallback
+#   - kovra-mcp : the MCP server sdist + wheel (pure Python, built by uv)
 #
-# INERT BY DEFAULT. The publish step is gated on `KOVRA_PUBLISH_ENABLED == 'true'`
-# AND the `PYPI_TOKEN` secret, neither of which exists before go-live (KOV-51).
-# The build steps are safe to run anytime; nothing is uploaded until the gate is
-# open. Runs on free GitHub-hosted runners.
+# kovra is macOS-first, so a Linux-only wheel set leaves the primary audience
+# unable to `pip install kovra-mcp` (kovra-ffi has no matching wheel). The matrix
+# below produces a macOS arm64 + x86_64 + Linux wheel set plus an sdist.
+#
+# INERT BY DEFAULT. Every job is gated on `KOVRA_PUBLISH_ENABLED == 'true'` AND
+# the `PYPI_TOKEN` secret. Publishing is idempotent via `uv publish --check-url`
+# (files already on PyPI are skipped), so re-runs after a partial failure are safe.
 
 on:
   push:
@@ -18,7 +22,41 @@ permissions:
   contents: read
 
 jobs:
-  pypi:
+  ffi-wheels:
+    if: ${{ vars.KOVRA_PUBLISH_ENABLED == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest   # manylinux x86_64
+          - os: macos-14        # Apple Silicon (arm64)
+          - os: macos-13        # Intel (x86_64)
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build deps (libdbus for the keyring crate)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
+      - name: Install maturin
+        run: pipx install maturin
+
+      - name: Build kovra-ffi wheel (abi3)
+        run: maturin build --release -m crates/ffi-python/Cargo.toml --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffi-wheel-${{ matrix.os }}
+          path: dist/*.whl
+
+  sdist-and-mcp:
     if: ${{ vars.KOVRA_PUBLISH_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -30,25 +68,40 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Linux build deps (libdbus for the keyring crate)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-
       - name: Install uv + maturin
         run: pipx install uv maturin
 
-      - name: Build kovra-ffi wheel (maturin, abi3)
-        run: maturin build --release -m crates/ffi-python/Cargo.toml
+      - name: Build kovra-ffi sdist (source fallback)
+        run: maturin sdist -m crates/ffi-python/Cargo.toml --out dist
 
-      - name: Build kovra-mcp sdist + wheel (uv)
+      - name: Build kovra-mcp sdist + wheel
         working-directory: mcp
-        run: uv build
+        run: uv build --out-dir ../dist
 
-      - name: Publish to PyPI
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist-and-mcp
+          path: dist/*
+
+  publish:
+    if: ${{ vars.KOVRA_PUBLISH_ENABLED == 'true' }}
+    needs: [ffi-wheels, sdist-and-mcp]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pipx install uv
+
+      - name: Collect all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to PyPI (skip files already uploaded)
         env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          set -euo pipefail
-          # maturin built the ffi wheel into the workspace target/wheels dir.
-          maturin upload --skip-existing target/wheels/*.whl
-          uv publish mcp/dist/*
+        run: uv publish --check-url https://pypi.org/simple/ dist/*
