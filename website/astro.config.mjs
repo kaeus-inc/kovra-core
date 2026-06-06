@@ -75,6 +75,9 @@ export default defineConfig({
 				src: './src/assets/kovra-icon.png',
 				alt: 'kovra',
 			},
+				// Brand favicon — the kovra cobra head from the brand sheet
+				// (docs/design/kovra-brand-sheet.jpeg), not Starlight's default sparkle.
+				favicon: '/favicon.png',
 			// Fonts are vendored locally via Fontsource (no runtime CDN — brand.md
 			// offline constraint). Astro bundles the woff2 into the build and serves
 			// them from kovra.sh. Sora = display/wordmark, Inter = body/UI.
