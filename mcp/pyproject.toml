@@ -1,6 +1,6 @@
 [project]
 name = "kovra-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "Kovra MCP server — let your AI agents use your secrets without ever seeing them."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -24,7 +24,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://kovra.sh"
-Documentation = "https://kovra.sh"
+Documentation = "https://kovra.sh/agents/mcp/"
 Repository = "https://github.com/kaeus-inc/kovra-core"
 Issues = "https://github.com/kaeus-inc/kovra-core/issues"
 
