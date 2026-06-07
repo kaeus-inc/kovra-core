@@ -1,5 +1,5 @@
 <h1 align="center">kovra</h1>
-<p align="center"><strong>Highly secure convenience.</strong></p>
+<p align="center"><strong>Highly secure hyperproductivity.</strong></p>
 <p align="center">Secrets your AI agents can <em>use</em>, but never <em>see</em>.</p>
 
 ---
@@ -15,6 +15,13 @@ context**.
 Every sensitive action waits for you to **bioProve** it — kovra's word for a
 one-gesture biometric check (Touch ID on macOS, Windows Hello on Windows):
 **kovra does the work, you authorize it.**
+
+kovra custodies the **use** of your secrets, not just their storage — and it is
+honest about the limit: a secret has to be cleartext *somewhere* to be used, so
+kovra shrinks how much sees it, keeps the critical values off the manipulable
+link, and puts a human at the decision that matters. Built for the age of AI
+agents; macOS-first and developer-ready today, on a path to the whole
+organization.
 
 ## The problem
 
@@ -114,7 +121,8 @@ unchanged.
 ## Documentation
 
 Full guides — concepts, the security model, the CLI reference, providers, the MCP
-surface, sharing, and the Web UI — live at **<https://kovra.sh>**.
+surface, sharing, and the Web UI — live at **<https://kovra.sh>**. The **vision,
+mission & values** behind kovra: **<https://kovra.sh/about/vision/>**.
 
 ## Security
 
