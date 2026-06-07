@@ -249,9 +249,8 @@ problem, and naming them is what keeps the rest of the article honest.
 - **The last mile is inevitable.** At the instant of use, the plaintext lives in a
  process's memory, and whoever controls that process can read it. No tool can hand
  a value to your application while preventing the application from reading it. Like
- every serious secrets manager — Vault, AWS Secrets Manager, Azure Key Vault,
- Doppler — kovra does **not** try to prevent the authorized principal from reading
- the secret. It invests in encryption, access control, audit, and surface
+ every serious secrets manager, kovra does **not** try to prevent the authorized
+ principal from reading the secret. It invests in encryption, access control, audit, and surface
  reduction: "assume breach" mitigations, all probabilistic.
 
 - **For a truly critical secret, containment lives in *how the tool is used*.** The
