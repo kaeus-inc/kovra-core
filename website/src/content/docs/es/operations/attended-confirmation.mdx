@@ -1,0 +1,46 @@
+---
+title: Confirmación asistida
+description: Protege cualquier acción — no solo un secreto — con la aprobación biométrica de un humano, usando el broker de confirmación de kovra.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`kovra confirm` expone el broker de aprobación de kovra como un **primitivo independiente**. Le pide a un humano que haga <span class="bioprove">bioProve</span> sobre una acción descrita y **termina con código `0` si se aprueba**, o con un código distinto de cero si se deniega o se agota el tiempo — de modo que cualquier app o script de confianza puede proteger su propia acción detrás de un humano real, de la misma manera en que se protege la revelación de un secreto.
+
+Es **independiente de secretos**: no necesita vault ni clave maestra. Simplemente abre el broker, muestra tu descripción como prompt autoritativo y reporta el veredicto a través de su código de salida.
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra confirm "Promote build 1.2.3 to staging"
+Approval required: Promote build 1.2.3 to staging
+Approve at the biometric prompt, or (file broker) run `kovra approve --list` then `kovra approve <id>` in another terminal. Waiting…
+Approved.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo sobre Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+## Protege tu propia acción
+
+Como el veredicto es un código de salida, integrarlo en un script es una sola línea:
+
+```bash
+if kovra confirm "Deploy to production"; then
+  ./deploy.sh
+else
+  echo "Denied — not deploying."
+fi
+```
+
+`--ttl <seconds>` limita el tiempo de espera antes de **fallar de forma segura hacia una denegación** (120 s por defecto).
+
+:::caution[La descripción es texto de confianza]
+El encabezado del prompt se muestra **tal cual** y se trata como texto de confianza del caller — es lo que el humano está aprobando. **Nunca** le pases entradas no confiables o generadas por un LLM, o permitirías que el caller escriba las mismísimas palabras usadas para engañar al aprobador.
+:::

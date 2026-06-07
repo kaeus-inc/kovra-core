@@ -1,0 +1,69 @@
+---
+title: ssh-agent gobernado
+description: Deja que kovra actúe como tu ssh-agent — firmando cada desafío en memoria con una clave custodiada que nunca toca el disco.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+kovra puede funcionar como tu **ssh-agent**: habla el protocolo ssh-agent sobre un
+socket local y firma cada desafío de autenticación **en memoria** con un
+[par de claves](/es/guides/keypairs/) custodiado. La clave privada nunca sale de kovra
+y nunca toca `~/.ssh`.
+
+## Ejecutar kovra como el agente
+
+`kovra ssh-agent` corre en primer plano, imprime el socket para exportar y sirve
+hasta que lo detienes. Rechaza iniciarse si `$SSH_AUTH_SOCK` ya está definido — nunca
+secuestra otro agente:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra ssh-agent
+kovra ssh-agent listening on ~/.vaults/agent.sock
+Export it in the shells that should use kovra as their agent:
+
+    export SSH_AUTH_SOCK=~/.vaults/agent.sock
+
+Serving in the foreground — press Ctrl-C to stop.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo sobre Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Exporta el socket en otra shell y usa SSH normalmente; el desafío de cada conexión
+es firmado por kovra:
+
+```bash
+export SSH_AUTH_SOCK=~/.vaults/agent.sock
+ssh deploy@server
+```
+
+Una clave `high`/`prod` te pide que hagas <span class="bioprove">bioProve</span> en cada firma (una verificación
+biométrica rápida — Touch ID, Windows Hello) y queda auditada; las claves `low`/`medium`
+firman en silencio. Qué claves sirve el agente está gobernado por el **alcance** en
+`<vault-root>/agent.toml`, el mismo modelo de alcance que usan los agentes.
+
+## O cargar una clave en tu agente existente
+
+Si prefieres conservar tu agente habitual, `kovra ssh-add` carga una clave custodiada
+en el ssh-agent **en ejecución**, solo en memoria — nunca se escribe en `~/.ssh`. Cargar
+una clave `high`/`prod` te pide que hagas <span class="bioprove">bioProve</span>:
+
+```bash
+kovra ssh-add secret:dev/ssh/deploy
+```
+
+## Un límite honesto
+
+kovra gobierna el **evento de autenticación** — el momento en que la clave prueba tu
+identidad — no la **sesión SSH** que se abre después. Una vez que se autoriza una
+conexión, lo que ocurre dentro de esa sesión es entre tú y el host remoto.
+kovra hace imposible copiar la clave y hace atribuible su *uso*; no se interpone
+en tu shell.

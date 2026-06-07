@@ -1,0 +1,83 @@
+---
+title: kovra
+description: Secretos que tus agentes de IA pueden usar pero nunca ver. kovra es un gestor de secretos local que expone metadatos acotados por MCP — el texto en claro nunca entra en el contexto del modelo.
+template: splash
+hero:
+  title: Secretos que tus agentes de IA pueden usar, nunca ver
+  tagline: "<strong>Hiperproductividad altamente segura.</strong> Apunta un agente de IA a tu repositorio y puede leer cada secreto que contiene. kovra cambia eso — tus agentes <em>usan</em> tus llaves, tokens y contraseñas a través de un servidor MCP, mientras el texto en claro nunca entra en el contexto del modelo."
+  image:
+    alt: kovra
+    file: ../../../assets/kovra-icon.png
+  actions:
+    - text: Conoce más
+      link: /es/concepts/
+      icon: open-book
+      variant: primary
+    - text: Nuestra visión
+      link: /es/about/vision/
+      icon: rocket
+      variant: secondary
+    - text: Ver en GitHub
+      link: https://github.com/kaeus-inc/kovra-core
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+Apuntas un agente de IA a tu repositorio para ir más rápido — y ahora puede leer
+**cada secreto que contiene**: los archivos `.env`, las llaves pegadas en
+terminales, los tokens en tu historial de shell. kovra cierra esa brecha.
+Custodia tus secretos en una bóveda local cifrada y deja que agentes y
+herramientas los **usen** sin jamás **verlos** — ni en un registro, ni en disco,
+ni en argv, y **nunca en el contexto de un agente de IA**. Cada acción sensible
+espera a que la <span class="bioprove">bioProve</span> — *la palabra de kovra para
+una verificación biométrica de un solo gesto (Touch ID, Windows Hello)*: **kovra
+hace el trabajo, tú lo autorizas.**
+
+<CardGrid stagger>
+	<Card title="Hecho para agentes de IA" icon="comment-alt">
+ La razón de ser de kovra. Apunta Claude Code — o cualquier cliente MCP — a tu
+ proyecto y correrá bajo un **alcance**: ve que un secreto *existe*, su coordenada
+ y sensibilidad, y puede ejecutar comandos a través del wrapper — pero el texto en
+ claro de tus secretos `high` / `prod` / inject-only **nunca entra en el contexto
+ del modelo**.
+	</Card>
+	<Card title="Inyección en procesos" icon="rocket">
+ `kovra run` resuelve un archivo `.env.refs` (nombres de variables → *coordenadas*,
+ nunca valores) e inyecta los valores resueltos directamente en un proceso hijo.
+ Nada toca el disco, argv ni el historial de shell.
+	</Card>
+	<Card title="Bóveda local cifrada" icon="seti:lock">
+ Por proyecto o global. Una clave maestra por bóveda vive en el llavero del sistema
+ operativo y cifra cada entrada en reposo (ChaCha20-Poly1305); la memoria que
+ contiene secretos se pone a cero tras su uso.
+	</Card>
+	<Card title="Tú haces bioProve, kovra actúa" icon="approve-check">
+ Revelar o inyectar un secreto sensible — o bajar su protección — te pide que lo
+ <span class="bioprove">bioProve</span> (o recurras a la contraseña de tu
+ dispositivo). Sin listas de comandos para ejecutar a mano.
+	</Card>
+</CardGrid>
+
+## A dónde ir después
+
+- **[Instalación](/es/start/installation/)** — pon kovra en tu máquina.
+- **[Inicio rápido](/es/start/quick-start/)** — guarda un secreto, inyéctalo en un
+ proceso y conecta Claude Code en cinco minutos.
+- **[Vista general](/es/concepts/)** — el mapa de conceptos: coordenadas, niveles
+ de sensibilidad, alcance del agente y el contrato `.env.refs`.
+- **[Cómo funciona](/es/concepts/how-it-works/)** — los flujos del día a día de
+ punta a punta, a alto nivel.
+- **[Secretos en la era de los agentes de IA](/es/security/rationale/)** — el
+ whitepaper de kovra: el problema, las tensiones, la solución y un relato honesto
+ de sus riesgos y límites. <a class="pdf-inline" href="/secrets-in-the-age-of-ai-agents.pdf" download>PDF</a>
+- **[Visión, misión y valores](/es/about/vision/)** — el documento fundacional de
+ kovra: por qué existimos, el mundo que queremos construir y lo que defendemos.
+ Escrito para quien decide. <a class="pdf-inline" href="/kovra-vision.es.pdf" download>PDF</a>
+
+---
+
+<sub>kovra es un producto de **Kaeus Inc**. De código disponible bajo la Business
+Source License 1.1; cada versión se convierte en Apache-2.0 cuatro años después de
+su publicación.</sub>

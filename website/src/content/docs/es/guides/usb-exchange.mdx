@@ -1,0 +1,123 @@
+---
+title: Intercambio USB
+description: Inicializa una máquina sin kovra a través de una memoria USB — y entiende por qué cada paso del viaje de ida y vuelta está diseñado como está.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un [paquete sellado](/es/guides/sharing/) asume que el receptor ya ejecuta kovra y
+tiene una clave con la que sellar. El **kit de intercambio USB** maneja el caso más
+difícil: una **máquina de destino sin kovra en absoluto** — un laptop recién formateado,
+una máquina aislada de la red, una máquina a la que no puedes llegar por la red. No puedes
+enviarle un paquete normal, porque no hay nada allí para abrirlo.
+
+Esta página recorre el viaje completo de ida y vuelta desde el punto de vista del usuario
+y explica **por qué cada paso está diseñado como está**.
+
+:::note[Solo macOS, por ahora]
+El rail de medios extraíbles (`exchange`) es solo para macOS por ahora. Cada paso
+destructivo o sensible pide un <span class="bioprove">bioProve</span>, y los secretos de producción están
+excluidos. El
+[diagrama de colaboración](/es/security/flows/#bootstrapping-a-new-machine-usb-exchange)
+muestra el mismo viaje de ida y vuelta visualmente.
+:::
+
+## El flujo, paso a paso
+
+Es un **viaje de ida y vuelta** entre dos máquinas — **origen** (donde viven los secretos)
+y **destino** (la nueva máquina) — transportado por una memoria USB, con una cosa
+deliberadamente excluida de la memoria: el token de acceso.
+
+### 1. Origen — construir la USB de bootstrap
+
+**Haz esto:** inserta una memoria USB de repuesto en la máquina **origen** y ejecuta:
+
+```bash
+kovra exchange init
+```
+
+Omite `--device` y kovra te dejará elegir interactivamente de los dispositivos externos
+elegibles; pasa `--device /dev/diskN` para nombrar uno. Haz <span class="bioprove">bioProve</span>, y
+kovra formatea la memoria y deposita dos cosas en ella: el binario `kovra` y un
+`install.sh`.
+
+**Por qué se hace así.** El destino no tiene nada, así que la USB debe llevar la
+herramienta misma. Formatear **borra** el dispositivo, por lo que kovra acepta **solo
+medios externos extraíbles** — un disco fijo, interno o de arranque es rechazado de plano,
+y el borrado está protegido por un <span class="bioprove">bioProve</span>. No puedes inicializar una máquina
+borrando accidentalmente tu propio disco.
+
+### 2. Destino — instalar kovra y generar su identidad
+
+**Haz esto:** desconecta la USB, llévala a la **nueva máquina**, conéctala y ejecuta
+el instalador que contiene:
+
+```bash
+sh /Volumes/KOVRA/install.sh
+```
+
+Instala kovra, crea un vault portable, **genera el par de claves receptor propio del
+destino**, y escribe solo la clave **pública** (`recipient.pub`) de vuelta en la USB.
+
+**Por qué se hace así.** Esta es la idea clave. La **clave privada del destino nace en
+el destino y nunca lo abandona** — solo su mitad pública regresa. Así, cuando el origen
+sella secretos, los sella con una clave cuya mitad privada nunca ha visto: los bytes
+solo pueden ser abiertos por la máquina que generó la clave, y el intercambio nunca
+mueve una clave privada a través de la memoria.
+
+### 3. Origen — sellar el alcance con esa clave
+
+**Haz esto:** desconecta la USB, llévala **de vuelta al origen**, conéctala y sella
+un entorno:
+
+```bash
+kovra exchange seal --env dev
+```
+
+kovra lee `recipient.pub` de la memoria, sella el alcance, escribe
+`package.kovra` (y un `unpack.sh`) en la USB, e **imprime el token de acceso en tu
+pantalla** — no en la memoria. Copia ese token para entregarlo por separado.
+
+**Por qué se hace así.** Al igual que con los paquetes, **producción está prohibida**,
+y los secretos están sellados con la clave pública del destino. El **token se mantiene
+deliberadamente fuera de la USB**: la memoria ahora contiene un paquete cifrado que
+nadie puede abrir sin la clave privada del destino, *y* las entradas sensibles además
+necesitan el token, que viaja por otro camino. Quien encuentre la USB obtiene herramientas
+y un blob inabreable.
+
+### 4. Destino — registrar el token y abrir
+
+**Haz esto:** lleva la USB **de vuelta al destino** y conéctala. Por separado, entrega
+el token de acceso a esa máquina por el medio que elegiste (un mensaje, un gestor de
+contraseñas, en persona), guárdalo en un archivo — luego regístralo y abre:
+
+```bash
+kovra exchange register-token --from token.txt
+kovra exchange open
+```
+
+`open` usa el token registrado para las entradas sensibles y solicita la contraseña del
+vault del destino. La nueva máquina ahora contiene los secretos compartidos bajo su propio
+vault de kovra — inicializada desde cero solo con una memoria USB y un token entregado
+por separado.
+
+**Por qué se hace así.** El token se lee desde un archivo o stdin — **nunca desde la
+línea de comandos** (es una credencial portadora, así que se mantiene fuera de argv y del
+historial de shell). La apertura usa la identidad **custodiada** del destino en memoria, y
+el token controla las entradas sensibles — así incluso en el destino, los valores más
+sensibles necesitaron una credencial que nunca viajó en la memoria.
+
+### Por qué dos viajes físicos
+
+El viaje de ida y vuelta — origen → destino (herramientas) → origen (clave pública) →
+destino (paquete) — existe para que el origen siempre selle con una **clave real, propiedad
+del destino**. No hay ningún momento en que una clave privada, o una copia utilizable de
+los secretos, exista en algún lugar donde no debería.
+
+## Qué garantiza esto
+
+- Una **máquina sin kovra** puede ser incorporada sin red.
+- La **clave privada del destino nunca abandona el destino**.
+- La **USB sola no es autorización** — su paquete está sellado con la clave del
+ destino, y las entradas sensibles además necesitan el token fuera de la memoria.
+- **Producción nunca viaja**, y cada borrado o paso sensible pide un <span class="bioprove">bioProve</span>.

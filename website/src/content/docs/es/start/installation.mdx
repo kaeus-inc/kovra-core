@@ -1,0 +1,141 @@
+---
+title: Instalación
+description: Instala kovra en macOS — via Homebrew, desde el código fuente, más el servidor MCP para agentes de IA.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+kovra se compone de dos piezas:
+
+- **`kovra`** — el CLI en Rust y la bóveda local (esta es la herramienta principal).
+- **`kovra-mcp`** — un paquete Python opcional que expone kovra a agentes de IA
+  mediante [MCP](https://modelcontextprotocol.io). Solo lo necesitas para usar kovra
+  desde Claude Code (u otro cliente MCP).
+
+:::note[Soporte de plataformas]
+**macOS en Apple Silicon es la plataforma de referencia** — autenticación biométrica
+nativa e integración con Keychain. Windows (Windows Hello + Credential Manager) y Linux
+están en el roadmap, detrás de los mismos traits; las pestañas de Windows a continuación
+muestran lo que viene. Los ejemplos asumen macOS por ahora.
+:::
+
+## Instalar el CLI
+
+### Homebrew (recomendado)
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % brew install kaeus-inc/kovra/kovra
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> Se está preparando un paquete para scoop/winget.</p>
+
+</TabItem>
+</Tabs>
+
+Esto instala el binario `kovra` y lo agrega a tu `PATH`. Verifica la instalación:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra --version
+kovra 0.8.0
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> Se está preparando un paquete para scoop/winget.</p>
+
+</TabItem>
+</Tabs>
+
+### crates.io
+
+Cualquier plataforma con una toolchain de Rust puede instalar el CLI directamente desde
+crates.io — sin necesidad de un tap:
+
+```ansi frame="terminal" title="zsh" {1}
+~ % cargo install kovra
+```
+
+Esto compila e instala el binario `kovra` en `~/.cargo/bin`.
+
+### Desde el código fuente
+
+Necesitas una toolchain de Rust reciente (kovra apunta a la edición 2024). Clona el repositorio:
+
+```bash
+git clone https://github.com/kaeus-inc/kovra-core.git
+cd kovra-core
+```
+
+Luego compila el binario de release:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/kovra-core % cargo build --release
+   Compiling kovra-core v0.8.0 (…/kovra-core/crates/core)
+   Compiling kovra v0.8.0 (…/kovra-core/crates/cli)
+    Finished `release` profile [optimized] target(s) in 1m 47s
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> Los rieles nativos de biometría + Credential Manager aún no están construidos.</p>
+
+</TabItem>
+</Tabs>
+
+El binario `kovra` queda en `target/release/kovra`. Cópialo a algún directorio en tu
+`PATH`:
+
+```bash
+cp target/release/kovra /usr/local/bin/
+```
+
+## Instalar el servidor MCP (opcional)
+
+El servidor MCP permite que un agente de IA vea metadatos con alcance limitado y ejecute
+comandos a través del wrapper de kovra, sin recibir nunca el texto plano de tus secretos
+sensibles. Se distribuye como el paquete Python `kovra-mcp` y provee el comando `kovra-mcp`.
+
+```bash
+pip install kovra-mcp
+# o, aislado en tu PATH:
+pipx install kovra-mcp     # o: uv tool install kovra-mcp
+```
+
+Normalmente no ejecutas `kovra-mcp` a mano — es un **servidor MCP stdio** que tu agente
+lanza. [`kovra setup`](/es/start/quick-start/#4-wire-up-claude-code)
+lo registra para tu proyecto. Solo confirma que está en tu `PATH`:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % which kovra-mcp
+/Users/you/.local/bin/kovra-mcp
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> Usa <code>where.exe kovra-mcp</code> cuando los paquetes de Windows estén disponibles.</p>
+
+</TabItem>
+</Tabs>
+
+## Siguiente paso
+
+Dirígete al **[Inicio rápido](/es/start/quick-start/)** para inicializar tu bóveda,
+almacenar tu primer secreto e inyectarlo en un proceso.

@@ -1,0 +1,133 @@
+---
+title: kovra sobre MCP
+description: Cómo un agente de IA usa tus secretos a través del servidor MCP de kovra — qué puede ver, qué puede ejecutar y qué nunca puede leer.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+kovra fue diseñado primero para este caso: un **agente de IA que necesita tus secretos
+para hacer trabajo real, pero que nunca debe leer los sensibles**. Se conecta a kovra
+como servidor [MCP](https://modelcontextprotocol.io/), de modo que el agente obtiene
+un conjunto reducido de herramientas gobernadas en lugar de acceso directo al vault.
+
+Todo lo que hace el agente pasa por la **misma decisión de política** que el CLI y
+la Web UI — el agente nunca decide qué puede tocar. Lo que cambia para un agente es
+solo *quién pregunta*: las solicitudes llevan el origen `agent` y se ejecutan bajo un
+[alcance](/es/concepts/agent-scope/), y la política considera ambos.
+
+## Conectarlo
+
+Un comando registra el servidor MCP con tu agente e inserta un bloque de convenciones
+en `CLAUDE.md` para que el agente sepa cómo usarlo:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra setup
+Vault ready; project `my-app`.
+Updated .mcp.json (register the kovra MCP server).
+Updated CLAUDE.md (insert/update the kovra conventions block).
+Setup complete. Review CLAUDE.md and .mcp.json, then reload your agent to pick up the MCP server.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> Credential Manager + Windows Hello, el mismo modelo de seguridad.</p>
+
+</TabItem>
+</Tabs>
+
+`kovra setup` apunta al `.mcp.json` de Claude Code. Con otro cliente MCP, registra
+el comando `kovra-mcp` en la configuración de ese cliente y establece el mismo
+alcance `KOVRA_MCP_ENVIRONMENTS` / `KOVRA_MCP_PROJECTS`.
+
+A partir de ese momento, una sesión de codificación ve las herramientas de kovra y
+una lista de **metadatos con alcance** — las coordenadas que puede direccionar, con
+su sensibilidad — y nada de los valores que hay detrás.
+
+## Qué puede hacer el agente
+
+Las herramientas se distribuyen a lo largo de los tres ejes de operación que gobierna
+kovra — **metadatos**, **inyección** y **revelación** — más las herramientas de
+gestión para crear y editar secretos. La separación es el punto central: un agente
+puede ser genuinamente útil en la parte superior de esta lista y seguir siendo incapaz
+de exfiltrar nada en la parte inferior.
+
+### Leer metadatos — siempre seguro
+
+El agente puede conocer libremente *que* existe un secreto y razonar sobre tu proyecto,
+sin que ningún valor sea tocado:
+
+- **`list`** — cada secreto direccionable en esta sesión: coordenada, sensibilidad,
+ modo, huella digital, indicadores. Los secretos fuera del alcance simplemente no aparecen.
+- **`status`** — los metadatos de una coordenada (produce error si no es direccionable).
+- **`fingerprint`** — una huella digital corta y **truncada** de un valor. Suficiente
+ para comprobar "¿es este el mismo secreto que antes?", nunca suficiente para
+ reconstruir o confirmar una suposición.
+
+Ninguna de estas herramientas devuelve jamás un valor. Así es como un agente mapea tu
+cableado — qué servicios necesitan qué claves — sin leer un solo secreto.
+
+### Inyectar — usar un secreto sin verlo
+
+Este es el camino habitual para un agente que necesita un valor real para ejecutar algo:
+
+- **`inject_run`** — resuelve un [`.env.refs`](/es/concepts/env-refs/) en línea y
+ ejecuta un programa con los valores colocados **en el entorno del proceso hijo**.
+ El texto plano va al proceso, nunca de vuelta al contexto del modelo. El resultado
+ es `{status, stdout, stderr}` con cualquier valor del vault **enmascarado** en
+ la salida.
+
+Inyectar un valor `high` o `prod` añade dos guardas independientes: debe apuntar a
+un **ejecutable en la lista de permitidos**, y se detiene para un <span class="bioprove">bioProve</span>
+(`kovra approve`). Un agente no puede enrutar silenciosamente una clave de producción
+hacia un programa que él mismo escribió.
+
+### Revelar — la única excepción estrecha y controlada
+
+- **`reveal`** — devuelve un valor en texto plano *al contexto del agente*. Esto
+ está permitido **solo** para un secreto que explícitamente marcaste como revelable
+ que sea **no `prod` y no `high`**. Todo lo demás — `prod`, `high`, `inject-only` —
+ **nunca** se devuelve a un agente, sin excepciones.
+
+Por tanto, lo único que un agente puede leer de vuelta es un valor ordinario y no
+productivo que deliberadamente dejaste abierto. Tus secretos sensibles no son
+"difíciles de revelar" a un agente; son **inalcanzables** por ese camino.
+
+### Crear y gestionar — escrituras, nunca lecturas
+
+El agente también puede ayudarte a configurar secretos. Estas herramientas modifican
+el vault pero nunca devuelven un valor:
+
+- **`set`** — almacena un valor literal. Los metadatos se devuelven, no el valor. Un
+ secreto `prod` **nace como `high`** automáticamente.
+- **`generate`** — hace que kovra genere un valor aleatorio fuerte en el servidor y
+ lo almacene. Solo se devuelven metadatos — el valor nunca queda expuesto, ni siquiera
+ una vez.
+- **`edit_metadata`** — ajusta la sensibilidad, descripción, el indicador `revealable`
+ o una referencia. **Reducir** la sensibilidad de un secreto se audita por separado
+ (y en el CLI requiere una confirmación asistida).
+- **`delete`** — elimina un secreto (produce error si no es direccionable en esta sesión).
+
+`generate` es la forma recomendada para que un agente cree credenciales: el valor
+existe solo dentro del vault desde el primer momento, por lo que no hay ninguna
+ventana en la que resida en el contexto del modelo.
+
+## Lo que un agente nunca puede hacer
+
+Sin importar cómo se dirija una sesión — incluyendo una con inyección de prompt o
+comprometida —, la política se mantiene:
+
+- **No puede leer** el texto plano de un secreto `high`, `prod` o `inject-only`.
+- **No puede alcanzar** nada fuera de su [alcance](/es/concepts/agent-scope/); esas
+ coordenadas son *indireccionables*, no simplemente denegadas.
+- **No puede inyectar** un valor `high`/`prod` en un programa no incluido en la lista
+ de permitidos, ni sin tu <span class="bioprove">bioProve</span>.
+- **No puede fabricar** el prompt de confirmación que ves — ese texto lo construye
+ kovra a partir de la solicitud real, nunca a partir de quien llama.
+
+Para conocer el orden preciso en que se juzga cada solicitud, consulta
+[el proceso de decisión](/es/security/decision/); para el límite en sí, consulta
+[el alcance del agente](/es/concepts/agent-scope/).

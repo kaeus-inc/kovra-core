@@ -1,0 +1,37 @@
+---
+title: Copia de seguridad y recuperación
+description: Realiza una copia de seguridad de la clave maestra del vault para recuperación ante desastres — y restáurala después de perder el keyring.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+La clave maestra es la **raíz de confianza** de todo tu vault: cada entrada está cifrada bajo ella. Si la pierdes — un Keychain borrado, una máquina muerta — los registros cifrados son **irrecuperables**. `kovra key` crea una copia de seguridad portátil y cifrada para que eso nunca se convierta en una catástrofe.
+
+## Exportar una copia de seguridad
+
+`kovra key export` te pide <span class="bioprove">bioProve</span> (la clave es la raíz de confianza del vault), luego una **passphrase de recuperación** (dos veces), y escribe un **blob `age` estándar con armadura ASCII** — cifrado bajo esa passphrase. La clave en texto plano nunca llega a un archivo.
+
+```bash
+kovra key export --out kovra-master.age
+```
+
+El blob es portátil: restáuralo con `kovra key import` o descifralo con **cualquier implementación de `age`** en caso de desastre real. Variantes útiles:
+
+- `--clipboard` — copia el blob (cifrado) al portapapeles para pegarlo en un gestor de contraseñas.
+- `--op` — guárdalo directamente en 1Password mediante el CLI `op`; kovra genera la passphrase de recuperación y la almacena junto al blob, así no hay nada que memorizar.
+
+Guarda la copia de seguridad en algún lugar independiente de la máquina de origen — un gestor de contraseñas, no el mismo disco.
+
+## Restaurar
+
+`kovra key import` lee el blob, solicita la passphrase de recuperación y vuelve a colocar la clave en el keyring del sistema:
+
+```bash
+kovra key import kovra-master.age
+```
+
+Una vez restaurada, el vault se desbloquea exactamente igual que antes.
+
+:::note[Los vaults en modo passphrase no necesitan esto]
+En el [modo passphrase](/es/operations/headless-ci/) no hay nada almacenado que respaldar — la clave se recalcula a partir de tu `KOVRA_PASSPHRASE` y el `kdf.salt` del vault. Tu "copia de seguridad" consiste simplemente en mantener esa passphrase y el archivo `kdf.salt` a salvo.
+:::

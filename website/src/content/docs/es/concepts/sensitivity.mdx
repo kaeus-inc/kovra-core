@@ -1,0 +1,86 @@
+---
+title: Niveles de sensibilidad
+description: Qué tan protector es kovra con cada secreto — low, medium, high e inject-only — y lo que el entorno prod agrega encima.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Cada secreto lleva un **nivel de sensibilidad**. El nivel decide *cómo* puede entregarse un valor — directamente, solo tras tu aprobación, o nunca a tus ojos.
+
+## Los cuatro niveles
+
+| Nivel | Entrega |
+|------|----------|
+| `low` | Entrega directa + auditoría. |
+| `medium` | Entrega directa + auditoría + notificación visible. |
+| `high` | **Confirmación atendida obligatoria** (biométrico / `kovra approve`) antes de la entrega. |
+| `inject-only` | **Nunca se revela.** Se inyecta en un proceso hijo únicamente. |
+
+Establece un nivel al crear un secreto y cámbialo después con `kovra edit`:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra add secret:dev/app/api-key --sensitivity high
+Added dev/app/api-key (High).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+Bajarlo de nuevo es una **rebaja** vigilada — macOS muestra un prompt biométrico (Touch ID) antes de aplicarla:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra edit secret:dev/app/api-key --sensitivity medium
+# high → medium is a downgrade: approve the Touch ID prompt to continue
+Edited dev/app/api-key.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+`inject-only` es el nivel cotidiano más estricto: el valor puede fluir *a través de* una inyección hacia un proceso que lo necesite, pero nunca se devuelve a tu terminal, una interfaz de usuario o un agente — no existe un "muéstrame esto" para un secreto `inject-only`.
+
+## Bajar un nivel es un acto vigilado
+
+Subir la protección es libre. **Bajarla** — por ejemplo `high` → `medium` — es una **rebaja** auditada que requiere confirmación atendida antes de aplicarse. No puedes quitar silenciosamente la protección de un secreto.
+
+## `prod` es un entorno, no un nivel
+
+Un punto de confusión frecuente: **`prod` no es un nivel de sensibilidad.** Es un *entorno* — el primer segmento de una [coordenada](/es/concepts/coordinates/). Interactúa con la sensibilidad de dos maneras específicas:
+
+1. **Un secreto `prod` nace como `high`.** Cuando creas un secreto cuyo entorno es `prod`, kovra fuerza su nivel a `high` desde el principio — nunca puede revelarse silenciosamente.
+2. **El plaintext de `prod` nunca entra en el contexto de un agente de IA.** Incluso un secreto marcado como `revealable`, incluso uno `prod` rebajado, se rechaza en el canal del agente. Solo una revelación deliberada, iniciada por humano en la CLI, puede exponer el plaintext de `prod`.
+
+Por lo tanto, `prod` es un piso adicional sobre los niveles, vinculado a *dónde* vive el secreto más que a *qué tan protegido* lo marcaste.
+
+## Dos compuertas independientes
+
+Cuando se entrega un secreto, kovra aplica dos verificaciones **separadas**. Mantenerlas distintas es lo que permite que un secreto `prod` deliberadamente rebajado se inyecte sin problemas mientras sigue estando contenido:
+
+- **La compuerta de confirmación** es **solo de sensibilidad**. Un secreto `high` requiere un <span class="bioprove">bioProve</span> antes de revelarse o inyectarse; la inyección de `low` / `medium` / `inject-only` procede sin prompt. Esta compuerta **no** considera el entorno.
+- **La compuerta de lista de permitidos** aplica para la inyección de **`high` o `prod`**. El ejecutable que recibe el valor debe estar en la **lista de permitidos del ejecutor** — un contenimiento impuesto por el wrapper, independiente del prompt de confirmación. Esto define *adónde* puede ir el valor, independientemente de si se disparó un prompt.
+
+El resultado: un secreto `prod` rebajado se inyecta **sin** prompt biométrico (su nivel ya no es `high`) pero aún **solo en un ejecutable de la lista de permitidos** (sigue siendo `prod`).
+
+## Cómo los niveles se encuentran con cada superficie
+
+El mismo secreto se entrega de manera diferente según quién pregunte (el [alcance del agente](/es/concepts/agent-scope/) cubre esto en detalle):
+
+- **CLI** (tú, de forma atendida) — el rango completo, con `high` bloqueado por un <span class="bioprove">bioProve</span> y `inject-only` aún nunca revelado.
+- **Web UI** (loopback) — nunca renderiza el plaintext de `high` / `inject-only` en la página; esos se revelan vía la CLI.
+- **MCP** (el canal del agente) — nunca revela el plaintext de `high` / `prod` / `inject-only`, y solo revela un secreto no-`prod`, no-`high` que fue optado explícitamente para revelación.

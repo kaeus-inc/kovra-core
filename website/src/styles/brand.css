@@ -121,6 +121,21 @@ h1#_top {
   color: var(--kovra-accent-2);
 }
 
+/* Balance the splash spacing. Starlight's default desktop hero uses
+ * padding-block up to 10rem, which leaves an oversized gap between the hero and
+ * the intro copy below it. Tighten it to a calmer, balanced rhythm. (Unlayered
+ * rule → wins over Starlight's @layer styles.) */
+@media (min-width: 50rem) {
+  .hero {
+    padding-block: clamp(2rem, calc(1rem + 4vmin), 4.5rem);
+  }
+}
+
+/* Give the intro copy room to breathe before the feature cards on the splash. */
+.sl-markdown-content .card-grid {
+  margin-top: 3rem;
+}
+
 /* ── PDF download button (Design rationale article) ───────────────────── */
 .sl-markdown-content a.cta-pdf {
   display: inline-flex;
@@ -227,6 +242,12 @@ h1#_top {
 .sl-markdown-content .bioprove:focus::after {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* Spanish locale (/es/, html lang="es"): translated tooltip text. Higher
+ * specificity than the default rule above, so it wins on Spanish pages only. */
+html[lang='es'] .sl-markdown-content .bioprove::after {
+  content: 'la palabra de kovra para una verificación biométrica atendida (Touch ID en macOS, Windows Hello en Windows) que autoriza una acción sensible.';
 }
 
 /* "Coming soon" placeholder shown in the Windows OS tab until L13 lands. */

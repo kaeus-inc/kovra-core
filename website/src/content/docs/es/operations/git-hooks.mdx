@@ -1,0 +1,42 @@
+---
+title: Git hooks
+description: Instala un hook pre-commit que escanea los cambios en staging y bloquea un commit que pudiera filtrar un secreto.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+La forma más segura de mantener un secreto fuera de tu historial es no dejar que se commitee. `kovra hooks install` coloca un **hook pre-commit** en un repositorio que escanea el diff en staging y **falla el commit si encuentra algo**.
+
+## Instalación
+
+Ejecútalo dentro del repositorio que deseas proteger:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra hooks install
+Wrote ./.gitleaks.toml
+Installed the gitleaks pre-commit hook at ./.git/hooks/pre-commit.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo sobre Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Escribe un hook pre-commit basado en [gitleaks](https://github.com/gitleaks/gitleaks) en `.git/hooks/pre-commit` y un archivo de configuración `.gitleaks.toml` que puedes ajustar. A partir de entonces, cada `git commit` escanea lo que tienes en staging; un posible secreto aborta el commit antes de que entre en el historial.
+
+No reemplazará silenciosamente un hook pre-commit que ya tengas — vuelve a ejecutarlo con `--force` para sobrescribir uno existente.
+
+## Por qué un hook *y* el vault
+
+El vault mantiene los secretos fuera de tu código desde el principio, y `.env.refs` guarda solo direcciones — pero un hook es la última barrera frente al error que todos cometemos alguna vez: pegar un valor real en un archivo "solo por un momento". La defensa en profundidad significa que el commit queda bloqueado incluso cuando la disciplina falla.
+
+## Comprobaciones relacionadas
+
+- **[`kovra doctor`](/es/concepts/env-refs/#let-kovra-write-it-for-you)** valida el `.env.refs` de un proyecto — conéctalo a CI para que falle la build ante cualquier deriva.
+- **`kovra scaffold`** propone un `.env.refs` a partir de tu código fuente, de modo que cables los secretos por *dirección*, nunca por valor.

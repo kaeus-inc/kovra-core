@@ -1,0 +1,86 @@
+---
+title: Códigos TOTP
+description: Custodia una semilla TOTP en el vault y produce códigos de un solo uso bajo demanda — la semilla nunca se revela.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Una **inscripción TOTP** permite que kovra custodie la semilla compartida detrás de una
+contraseña de un solo uso basada en tiempo (los códigos 2FA de una app autenticadora)
+y produzca el código de 6 dígitos actual bajo demanda. La **semilla está sellada como
+cualquier otro secreto y nunca se revela** — solo el código derivado se imprime alguna vez.
+
+## Inscribir una semilla
+
+`kovra add --totp` lee una semilla desde un prompt oculto o stdin — una cadena base32 o
+un URI `otpauth://` completo. Nunca toca argv:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra add secret:dev/app/totp --totp
+Added dev/app/totp (Medium).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo sobre Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+En el [listado del vault](/es/concepts/vault/) la entrada muestra un **modo** tipado de
+`totp:<algorithm>` (p. ej. `totp:sha1`) en lugar de `literal`, para que puedas identificar
+a simple vista que es una inscripción y no un valor en bruto.
+
+## Producir un código
+
+`kovra code` imprime el código actual para una inscripción — y solo el código, nunca
+la semilla:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra code secret:dev/app/totp
+278165
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo sobre Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Producir un código se trata como una revelación: para una inscripción `high` o `prod`
+debes hacer <span class="bioprove">bioProve</span> y queda
+auditado; `low`/`medium` se imprime directamente.
+
+### Scripting
+
+Cuando un script necesita un código que no expire a mitad de uso, `--min-validity` (`-m`)
+garantiza que el código devuelto tenga más de *N* segundos de vida restante y fuerza
+una salida simple no interactiva (el código sin más, sin cuenta regresiva):
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra code secret:dev/app/totp -m 5
+278165
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo sobre Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Si la ventana actual tiene menos de *N* segundos restantes, kovra espera la siguiente
+ventana y devuelve ese código en su lugar — así el valor que obtienes siempre es utilizable.

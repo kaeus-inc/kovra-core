@@ -1,0 +1,55 @@
+---
+title: La pista de auditoría
+description: Cada acceso y operación, registrados — coordenadas, sensibilidad, timestamps y origen, nunca un valor.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Sea cual sea el resultado de una solicitud — permitida, confirmada, denegada o no resoluble — kovra la registra. `kovra audit` consulta esa pista. Responde a "¿qué pasó con mis secretos y quién preguntó?" **sin convertirse en un nuevo lugar donde un secreto pueda filtrarse**: la pista guarda coordenadas, sensibilidad, timestamps y origen — **nunca un valor, y nunca una huella lo bastante completa como para confirmar una suposición**.
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra audit
+TIMESTAMP             ACTION   COORDINATE           SENS    ORIGIN  FPR  RESULT
+2026-06-05T19:29:26Z  create   dev/db/password      medium  human   -    created
+2026-06-05T19:29:51Z  reveal   dev/app/api-key      medium  human   -    revealed
+2026-06-05T19:32:07Z  timeout  prod/stripe/api-key  high    human   -    timeout
+2026-06-05T19:32:29Z  reveal   prod/stripe/api-key  high    human   -    revealed
+2026-06-05T19:32:44Z  inject   dev/db/password      medium  human   -    injected
+5 event(s).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo sobre Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+## Las columnas
+
+| Columna | Significado |
+| --- | --- |
+| `TIMESTAMP` | Cuándo ocurrió (UTC, RFC-3339). |
+| `ACTION` | `create`, `reveal`, `inject`, `timeout`, … |
+| `COORDINATE` | El `env/component/key` tocado — nunca el valor. |
+| `SENS` | La sensibilidad del secreto en ese momento. |
+| `ORIGIN` | `human` o `agent` — quién lo inició. |
+| `FPR` | Una huella corta y truncada cuando es relevante; nunca el hash completo. |
+| `RESULT` | A qué se resolvió la solicitud (`revealed`, `injected`, `denied`, `timeout`, …). |
+
+## Filtrado
+
+Acota la pista a lo que estás investigando:
+
+```bash
+kovra audit --coordinate dev/db/password   # one exact coordinate
+kovra audit --env prod                      # everything in an environment
+kovra audit --action reveal                 # only reveals
+kovra audit --since 2026-06-01T00:00:00Z    # a time window
+```
+
+`--component` y `--until` también están disponibles. Como cada entrada lleva el **origen**, la pista también muestra exactamente qué hizo un agente en tu nombre — y, igual de útil, qué le fue denegado.

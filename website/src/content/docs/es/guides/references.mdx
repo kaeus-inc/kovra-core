@@ -1,0 +1,88 @@
+---
+title: Referencias en la nube
+description: Almacena un puntero a un valor en Azure Key Vault o AWS Secrets Manager — kovra lo resuelve en tiempo de ejecución bajo tu propia identidad, y nunca almacena el valor.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Una **referencia** es una entrada del vault que contiene un *puntero* a un valor que
+vive en un gestor de secretos en la nube — no el valor en sí. kovra lo resuelve
+**en tiempo de ejecución, bajo tu propia identidad de nube**, y nunca copia el texto
+plano en el vault. Hoy se incluyen dos proveedores:
+
+- **Azure Key Vault** — `azure-kv://<vault-name>/<secret-name>`
+- **AWS Secrets Manager** — `aws-sm://<secret-id>`
+
+## Agregar una referencia
+
+`kovra add --reference` almacena el puntero. No hay ningún valor que solicitar:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra add secret:dev/db/url --reference 'azure-kv://my-keyvault/db-url'
+Added dev/db/url (Medium).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo en Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+En un listado, una referencia muestra un **modo** de `reference` y su **puntero** en
+lugar de una huella digital — de modo que puedes ver exactamente dónde resuelve, sin
+ningún valor en pantalla:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra list
+┌────────┬──────────────┬─────────────┬───────────┬─────────────────────────────────────┐
+│ ORIGIN ┆ COORDINATE   ┆ SENSITIVITY ┆ MODE      ┆ FINGERPRINT                         │
+╞════════╪══════════════╪═════════════╪═══════════╪═════════════════════════════════════╡
+│ global ┆ dev/db/url   ┆ medium      ┆ reference ┆ → azure-kv://my-keyvault/db-url     │
+├╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ global ┆ prod/app/jwt ┆ high        ┆ reference ┆ → aws-sm://prod/app/jwt-signing-key │
+└────────┴──────────────┴─────────────┴───────────┴─────────────────────────────────────┘
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo en Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Una referencia `prod` sigue naciendo como `high` — el piso de entorno aplica al
+puntero igual que a un literal.
+
+## Cómo se resuelve una referencia
+
+Cuando una coordenada referenciada se inyecta (mediante [`kovra run`](/es/concepts/env-refs/)
+o un agente), kovra llama al proveedor **con tus credenciales** y transmite el valor
+directamente al proceso hijo — nunca se escribe en el vault, en un archivo ni en tu
+contexto. La misma [decisión de política](/es/security/decision/) rige la entrega;
+la única diferencia respecto a un literal es *de dónde vienen los bytes*.
+
+Esto mantiene la fuente de verdad en tu gestor de secretos en la nube, al tiempo que
+te ofrece un único espacio de nombres de coordenadas, una única política y un único
+registro de auditoría para secretos literales y respaldados en la nube.
+
+## Referencias en paquetes compartidos
+
+Cuando [sellas un paquete](/es/guides/sharing/) para un compañero, las referencias
+viajan como **punteros, sin resolver**. El destinatario importa el puntero y
+materializa el valor después bajo *su propia* identidad de proveedor — tus
+credenciales nunca se comparten y el secreto nunca se descifra en el paquete.
+
+## Referencia frente a importación
+
+Una referencia permanece **en vivo** — siempre resuelve el valor actual en la nube.
+Si en cambio quieres una **copia única** capturada en el vault (sin vínculo continuo
+con el origen), consulta [Importar desde 1Password](/es/guides/import/).
