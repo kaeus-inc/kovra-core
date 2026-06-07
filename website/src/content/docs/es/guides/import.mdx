@@ -1,0 +1,49 @@
+---
+title: Importar desde 1Password
+description: Copia una credencial de 1Password al vault como literal — una copia única, gobernada por kovra a partir de ese momento.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`kovra import` copia una credencial de **1Password** al vault como un **literal** —
+una copia única, no un enlace en vivo. kovra lee el valor una vez a través del CLI
+`op`, lo sella y **no mantiene ninguna relación con 1Password** a partir de ese
+momento. Desde entonces el secreto queda gobernado íntegramente por kovra.
+
+## Importar un valor
+
+Apunta `--from` a una referencia de secreto de 1Password
+(`op://<vault>/<item>/<field>`). El valor se lee una vez y se sella; solo la
+**dirección** `op://` toca argv, y el valor nunca se imprime:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra import secret:dev/db/password --from op://Personal/db/password
+Imported dev/db/password from 1Password (Medium) — value stored, not shown.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo en Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Una coordenada `prod` nace como `high`, igual que cualquier otro secreto. Esto
+requiere que el **CLI `op` esté instalado y con sesión iniciada** — kovra invoca
+`op read` para obtener el valor.
+
+## Una copia, no una referencia
+
+La importación es deliberadamente una **copia**: una vez ejecutada, el valor vive en
+tu vault de kovra bajo la política de kovra, sin depender de que 1Password esté
+accesible o con sesión iniciada. Eso es lo opuesto a una
+[referencia en la nube](/es/guides/references/), que mantiene el valor en el
+proveedor y lo resuelve en vivo cada vez.
+
+Usa **import** cuando quieras traer un secreto existente bajo la gobernanza de kovra
+de una vez; usa una **referencia** cuando el gestor de secretos en la nube deba
+seguir siendo la fuente de verdad.

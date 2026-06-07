@@ -1,0 +1,155 @@
+---
+title: Paquetes sellados
+description: Entrega un paquete de secretos no productivos a un compañero de equipo — y entiende, paso a paso, por qué cada parte del intercambio está diseñada como está.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Supongamos que necesitas entregar los secretos `dev` de tu equipo a un nuevo compañero. *Podrías*
+pegarlos en un chat — e instantáneamente crear una copia que vivirá para siempre en un
+historial de mensajes, una notificación, una copia de seguridad. Un **paquete sellado** hace
+el mismo trabajo sin crear nunca esa copia: agrupa los secretos, los cifra para que solo
+ese compañero pueda abrirlos y mantiene los más sensibles bloqueados detrás de una
+segunda credencial independiente.
+
+Esta página recorre el intercambio de principio a fin — qué hace cada persona, en qué orden,
+y **por qué cada paso está diseñado como está**. Los comandos vienen después, una vez que
+la estructura tiene sentido.
+
+## El flujo, paso a paso
+
+Hay dos personas: **tú** (el emisor) y tu **compañero** (el receptor).
+
+### 1. Tu compañero te da su clave pública
+
+Antes de sellar cualquier cosa, necesitas la **clave pública** del receptor — la mitad
+pública de un [par de claves](/es/guides/keypairs/) cuya mitad privada permanece en *su* vault.
+Ellos te envían la clave pública; no es un secreto.
+
+**Por qué se hace así.** El paquete se cifra *con esa clave*, de modo que solo la clave
+privada correspondiente puede abrirlo. La autorización está anclada a **quién es el receptor**,
+no a quien resulte tener el archivo. Un paquete que se filtra, se reenvía o se copia desde
+una copia de seguridad es inútil para cualquiera que no sea el receptor previsto — no hay
+contraseña compartida que interceptar, porque no hay contraseña en absoluto.
+
+### 2. Tú sellas un entorno con esa clave
+
+Apuntas kovra a un entorno (por ejemplo `dev`) y este sella cada secreto en él con la
+clave del receptor, produciendo dos artefactos separados: el **paquete** y un
+**token de acceso**.
+
+**Por qué se hace así.** Se aplican tres reglas al sellar, cada una con una razón:
+
+- **Producción está prohibida.** No puedes empaquetar `prod`. El intercambio es para colaborar
+ en `dev`/`staging`; los secretos de producción nunca deben viajar en una entrega, así que
+ la herramienta elimina esa fuente de errores por completo.
+- **Las referencias a la nube viajan como punteros, nunca como valores.** Si un secreto es
+ una [referencia a la nube](/es/guides/references/), el paquete lleva su *dirección* `azure-kv://` /
+ `aws-sm://`, no el valor resuelto. Tus credenciales de nube y el secreto en vivo nunca
+ entran en el paquete — el receptor lo resuelve luego bajo *su propia* identidad. Estás
+ compartiendo la intención de acceso, no el material.
+- **Todo expira.** El paquete y el token llevan un tiempo de vida (24 h por defecto). Si
+ alguno se extravía, la ventana en que es útil está acotada.
+
+### 3. Tú entregas el paquete y el token por canales *distintos*
+
+Envías al receptor el paquete de una forma (correo, una unidad compartida) y el token de
+acceso de **otra forma** (un mensaje separado, un gestor de contraseñas, en persona).
+
+**Por qué se hace así.** Este es el núcleo del diseño. El cifrado del paquete ya garantiza
+que solo el receptor puede abrir el sobre. El **token es un segundo factor independiente**
+que controla la entrega *desatendida* de los secretos `high` que contiene. Así:
+
+- Quien intercepte **solo el paquete** no puede abrirlo en absoluto (sin clave privada), e
+ incluso el receptor no puede extraer silenciosamente sus entradas sensibles sin el token.
+- Quien intercepte **solo el token** tiene una cadena portadora sin sentido sin ningún
+ paquete al que aplicarla.
+
+Separar "puede abrir el sobre" (la clave privada) de "puede consumir automáticamente el
+contenido sensible" (el token) significa que ningún artefacto interceptado individualmente
+es suficiente.
+
+### 4. Tu compañero lo abre con su identidad privada
+
+El receptor abre el paquete con la clave privada que kovra custodia para él. Los secretos
+ordinarios se importan directamente; cada secreto `high` se libera **solo** si el token
+del canal alternativo está presente — de lo contrario kovra se detiene y le pide que haga
+<span class="bioprove">bioProve</span>, en persona.
+
+**Por qué se hace así.** La clave privada se usa **solo en memoria y nunca sale de su vault**
+— abrir un paquete no puede exfiltrar la identidad misma que lo abre. Y la compuerta de
+secretos `high` significa que los valores más sensibles siempre requieren *ya sea* el segundo
+canal *o* un humano presente — nunca solo un archivo en el disco.
+
+## Sellar y enviar
+
+Necesitas la **clave pública ed25519** del receptor en un archivo — ya sea una que te enviaron,
+o la mitad pública de un par de claves que custodian (`kovra pubkey` la imprime):
+
+```bash
+kovra pubkey secret:peer/key > recipient.pub
+```
+
+Luego sella el entorno. kovra escribe el paquete y el token de acceso por separado:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra package --env dev --recipient recipient.pub --out dev.kpkg --token-out dev.token
+Sealed 4 secret(s) from env `dev` → dev.kpkg (expires in 86400s).
+Access token → dev.token (deliver over a SEPARATE channel; it enables unattended consumption).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo sobre Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Envía `dev.kpkg` por un camino y `dev.token` por otro. Usa `--ttl` para acortar la
+expiración y `--component` para compartir solo parte de un entorno.
+
+## Abrirlo
+
+El receptor abre el paquete con su identidad **privada** — un par de claves que custodia
+en su propio vault (usado solo en memoria, nunca exportado):
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra unpack --in dev.kpkg --identity secret:peer/key --token dev.token
+Imported 4 secret(s) into the global vault.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo sobre Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Si la clave privada está en un archivo en lugar del vault, usa `--identity-file`
+(o la variable de entorno `KOVRA_RECIPIENT_KEY` — nunca argv). **Omite `--token`**
+y cada entrada `high` hace una pausa para un <span class="bioprove">bioProve</span>
+en su lugar — el camino deliberado, con humano presente, cuando no hay segundo canal.
+
+## Qué garantiza esto
+
+- El paquete es abrible por **exactamente una identidad** — poseerlo no es acceso.
+- Las entradas **sensibles** necesitan un **segundo canal o un humano** — nunca solo
+ el archivo.
+- **Producción nunca se envía** por este medio, y los **secretos respaldados en la nube**
+ se comparten como punteros, no como valores.
+- Todo **expira**.
+
+## Inicializar una máquina nueva
+
+Todo este flujo asume que el receptor ya ejecuta kovra y tiene una clave. Para entregar
+secretos a una máquina que **no tiene kovra en absoluto** — formatear un USB, instalar
+el binario, intercambiar claves e importar — consulta
+[intercambio USB](/es/guides/usb-exchange/), que automatiza el viaje de ida y vuelta.

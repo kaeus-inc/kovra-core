@@ -1,0 +1,97 @@
+---
+title: El vault
+description: El almacén local cifrado de kovra — por proyecto o global, con una llave maestra custodiada en el llavero del sistema operativo.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+El **vault** es donde kovra guarda tus secretos. Es un almacén local cifrado — nada sale de tu máquina a menos que lo compartas explícitamente.
+
+## Cifrado en reposo
+
+Cada entrada se cifra con **ChaCha20-Poly1305** bajo una **llave maestra** por vault. Nunca manejas esa llave directamente: está custodiada en el **llavero del sistema operativo** (el macOS Keychain en la plataforma de referencia), y kovra la carga únicamente para cifrar y descifrar. La memoria que contiene secretos se **zeroiza** después de usarse, para que un valor no persista en la memoria del proceso.
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra init
+Initialized vault at ~/.vaults (OS keyring).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+:::note[Recuperación ante desastres]
+La llave maestra es la raíz de confianza de todo el vault — si la pierdes, las entradas cifradas son irrecuperables. `kovra key export` escribe un respaldo cifrado protegido por contraseña (un blob `age` estándar) que puedes guardar en un gestor de contraseñas; `kovra key import` lo restaura. El texto plano de la llave nunca queda en un archivo.
+:::
+
+## Vaults globales vs. de proyecto
+
+kovra resuelve secretos contra dos ámbitos:
+
+- Un vault **global** — tus secretos personales, a nivel de máquina.
+- Un vault de **proyecto** — secretos acotados a un repositorio.
+
+Por defecto, un vault de proyecto **sobreescribe** al vault global en la *misma* coordenada exacta: si ambos definen `secret:dev/db/password`, gana el del proyecto. La mayoría de los comandos aceptan un flag `--project <name>` para apuntar a un vault de proyecto específico en lugar del global.
+
+Cuando necesitas evitar la sobreescritura y leer el valor global explícitamente, usa el **selector de ámbito global** en la propia coordenada:
+
+```text
+secret://global/dev/db/password # resolver solo contra el vault global
+```
+
+Consulta **[Coordenadas](/es/concepts/coordinates/)** para la gramática completa de direcciones.
+
+## Qué se almacena — y qué no
+
+Una entrada del vault contiene el valor cifrado más **metadatos**: su coordenada, su [nivel de sensibilidad](/es/concepts/sensitivity/), una descripción opcional y flags como si es una referencia u optó por revelación en el lado del agente. El listado y la auditoría operan sobre estos metadatos — nunca tocan el valor:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra list
+┌────────┬─────────────────┬─────────────┬─────────┬─────────────┐
+│ ORIGIN ┆ COORDINATE      ┆ SENSITIVITY ┆ MODE    ┆ FINGERPRINT │
+╞════════╪═════════════════╪═════════════╪═════════╪═════════════╡
+│ global ┆ dev/app/api-key ┆ medium      ┆ literal ┆ c8a476b5    │
+├╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ global ┆ dev/db/password ┆ medium      ┆ literal ┆ 73c128b4    │
+└────────┴─────────────────┴─────────────┴─────────┴─────────────┘
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra audit
+TIMESTAMP             ACTION  COORDINATE       SENS    ORIGIN  FPR  RESULT
+2026-06-05T19:29:26Z  create  dev/db/password  medium  human   -    created
+2026-06-05T19:29:51Z  reveal  dev/app/api-key  medium  human   -    revealed
+2026-06-05T19:32:44Z  inject  dev/db/password  medium  human   -    injected
+3 event(s).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+No toda entrada es un secreto literal. Una entrada puede ser en cambio una **referencia** — un puntero a un valor en un proveedor en la nube (`azure-kv://`, `aws-sm://`) que se resuelve en tiempo de ejecución bajo tu propia identidad — o una **credencial tipada** como una inscripción TOTP o un par de claves asimétricas, donde la semilla cruda o la mitad privada nunca se revelan. Esos casos se tratan en sus propias secciones.

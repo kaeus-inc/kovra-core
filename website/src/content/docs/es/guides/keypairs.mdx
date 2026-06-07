@@ -1,0 +1,145 @@
+---
+title: Pares de claves y firma
+description: Genera y custodia pares de claves asimétricas — firma, verifica, cifra y descifra con una clave privada que nunca toca el disco.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+kovra puede custodiar un **par de claves asimétricas**: genera la clave, sella la
+mitad privada bajo la clave maestra del vault y **nunca escribe la clave privada en
+disco ni la imprime**. Operas *a través de* kovra — firmando, verificando, cifrando,
+descifrando — sin que la clave privada abandone jamás el vault.
+
+## Generar un par de claves
+
+`kovra keygen` crea la clave y muestra solo la mitad **pública**. Elige
+`ed25519` (firma **y** cifrado) o `rsa` (firma/SSH únicamente):
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra keygen secret:dev/ssh/deploy --type ed25519
+Generated dev/ssh/deploy (ed25519, Medium).
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDnM/+Nl+/2Y/uEZNK5Q7ZEdQEMmOGXB6PTQg2hWJaSw
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo en Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+La entrada aparece en el listado con un **modo** tipado de `keypair:ed25519`. Puedes
+reimprimir la clave pública en cualquier momento — esto es gratuito y nunca solicita
+confirmación:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra pubkey secret:dev/ssh/deploy
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDnM/+Nl+/2Y/uEZNK5Q7ZEdQEMmOGXB6PTQg2hWJaSw
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo en Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+## Firmar y verificar
+
+`kovra sign` firma datos desde un archivo o stdin; la firma va a stdout.
+`kovra verify` la comprueba. Firmar con una clave `high`/`prod` te pide
+<span class="bioprove">bioProve</span>; verificar es
+siempre gratuito:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % printf 'release v1.2.3' | kovra sign secret:dev/ssh/deploy > sig.bin
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo en Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % printf 'release v1.2.3' | kovra verify secret:dev/ssh/deploy --signature sig.bin
+OK: signature is valid
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo en Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+La verificación también funciona contra una **entrada solo de clave pública** — la
+clave pública de un par, almacenada con `kovra add --public-key` (no tiene mitad
+privada), por lo que puedes verificar las firmas de un compañero sin su clave
+privada.
+
+## Cifrar y descifrar
+
+Para un par de claves `ed25519`, kovra también puede cifrar **hacia** la clave
+pública y descifrar **con** la clave privada (un sealed box basado en `age`). Cifrar
+es gratuito; descifrar con una clave `high`/`prod` te pide
+<span class="bioprove">bioProve</span>:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % printf 'a short secret note' | kovra encrypt secret:dev/ssh/deploy > ct.bin
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo en Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~ % kovra decrypt secret:dev/ssh/deploy ct.bin
+a short secret note
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — próximamente.</strong> El mismo modelo en Windows Hello + Credential Manager.</p>
+
+</TabItem>
+</Tabs>
+
+Los pares de claves RSA firman y verifican (y funcionan como claves SSH) pero **no**
+admiten cifrado — usa `ed25519` cuando necesites sellado.
+
+## Por qué esto importa
+
+La clave privada se genera dentro del vault y **nunca se materializa en disco ni en
+tu shell**. Un agente o un script puede pedirle a kovra que *use* la clave — firmar
+una versión, abrir un mensaje sellado — pero no puede exfiltrarla, y cada uso de una
+clave sensible está controlado y auditado. Para cargar una clave en una sesión SSH,
+consulta [el ssh-agent gobernado](/es/guides/ssh-agent/).

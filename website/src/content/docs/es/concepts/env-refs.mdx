@@ -1,0 +1,94 @@
+---
+title: El contrato .env.refs
+description: El archivo que se puede commitear y mapea los nombres de variables de entorno a coordenadas — direcciones, nunca valores.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`.env.refs` es cómo conectas los secretos del vault a tus procesos. Mapea cada nombre de variable de entorno local a una **fuente** — la mayoría de las veces una [coordenada](/es/concepts/coordinates/) del vault. Dado que contiene **direcciones, no valores**, es seguro commitear al repositorio. El vault guarda los valores; este archivo guarda únicamente dónde encontrarlos.
+
+```ini
+#.env.refs — safe to commit; contains no secret values.
+project = my-app
+
+# Vault-backed, parameterized by --env (${ENV} is substituted at run time).
+DATABASE_URL=secret:${ENV}/db/password
+API_KEY=secret:${ENV}/app/api-key
+
+# Passthrough from the execution environment, with a fallback if unset.
+LOG_LEVEL=${env:LOG_LEVEL | info}
+
+# A plain literal (not a secret).
+PORT=8080
+```
+
+Ejecuta un comando con todo resuelto e inyectado en el proceso hijo — nada escrito en disco, argv ni historial de shell:
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra run --env dev -- your-app
+app started · DATABASE_URL=14 chars · API_KEY set=yes · PORT=8080
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+## Tipos de líneas
+
+| Forma | Significado |
+|------|---------|
+| `NAME=secret:<env>/<comp>/<key>` | Una **coordenada del vault**. Puede usar `${ENV}`. Un `\| fallback` opcional aplica si no resuelve. |
+| `NAME=${env:VAR}` | Un **passthrough** desde el entorno de ejecución. Soporta `${env:VAR \| fallback}`. |
+| `NAME=literal` | Un valor **literal** (no un secreto), p. ej. `PORT=8080`. |
+| `project = <name>` | Vincula este archivo a un **vault de proyecto** (la resolución lo apunta). |
+
+## Reglas que lo mantienen seguro
+
+- **Sin valores, nunca.** El archivo es solo direcciones — por eso commitear es seguro y por qué un `.env.refs` filtrado no expone nada.
+- **La única interpolación** es `${ENV}` dentro del segmento de entorno de una coordenada, y la forma passthrough `${env:NAME}`. **La interpolación entre variables se rechaza** — no puedes componer un secreto dentro de la cadena de otra variable, porque esa cadena compuesta quedaría en el log y anularía la política. Componer secretos es tarea de la aplicación, no del contrato.
+- **La resolución es una única pasada ordenada** sobre el archivo.
+
+## Deja que kovra lo escriba por ti
+
+No tienes que escribir `.env.refs` a mano. `kovra scaffold` escanea el código fuente de tu repositorio en busca de *referencias* a variables de entorno y propone un archivo inicial — lee solo los **nombres** de las variables, nunca un valor (nunca lee un archivo `.env*`):
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra scaffold --out .env.refs
+Wrote 2 proposed coordinate(s) to .env.refs — review before use.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+Y `kovra doctor` (alias `kovra lint`) lo valida: cada coordenada resuelve, sin entradas huérfanas en el vault, sin fallback de `prod`, referencias reportadas por estado — solo coordenadas y estado, nunca un valor.
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra doctor --env dev
+doctor: clean — no findings (env `dev`).
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>

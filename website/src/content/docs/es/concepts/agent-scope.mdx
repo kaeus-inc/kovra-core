@@ -1,0 +1,61 @@
+---
+title: Alcance del agente
+description: El límite de capacidades que permite a un agente de IA usar secretos sin ver los sensibles.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+El **alcance del agente** es la idea central de kovra: el límite que permite a un agente de codificación de IA *usar* tus secretos sin *ver* los sensibles.
+
+Cuando conectas kovra a Claude Code (o cualquier cliente MCP), el agente no obtiene tu vault. Obtiene un **alcance** — una capacidad que indica exactamente qué puede direccionar y hacer esta sesión. Todo lo que el agente solicita pasa por una decisión de política en el núcleo de kovra; el agente nunca toma esa decisión por sí mismo.
+
+## El alcance se aplica *primero*
+
+Una coordenada fuera del alcance de la sesión es **indireccionable** — no existe para ese canal. kovra no resuelve el secreto *y luego* lo deniega; el secreto simplemente nunca se expone. Eso es defensa en profundidad: incluso un agente comprometido o con prompt injection no puede alcanzar lo que el alcance excluye, porque esos secretos nunca estuvieron a su alcance.
+
+## El alcance se define en ejes de operación
+
+Crucialmente, el alcance **no** es "sin prod para el agente" — una prohibición de entorno a ciegas rompería flujos legítimos de diagnóstico y despliegue. En cambio, se define en tres ejes:
+
+- **Operación** — lo que el caller puede hacer con un valor:
+  - `metadata` — listar / estado / huella digital. Ningún valor es tocado.
+  - `inject` — entregar un valor *a través de* una operación hacia un proceso hijo; el valor nunca regresa al contexto del caller.
+  - `reveal` — devolver plaintext *al* contexto del caller (el camino vigilado).
+- **Filtros de proyecto / entorno** — qué proyectos y entornos están en alcance (ya sea *cualquiera*, o una lista de permitidos explícita).
+
+Cómo se establece ese alcance depende del canal: `kovra setup` escribe el alcance de un agente en el `.mcp.json` del proyecto (las claves `KOVRA_MCP_ENVIRONMENTS` / `KOVRA_MCP_PROJECTS`), mientras que el [ssh-agent gobernado](/es/guides/ssh-agent/) lee su propio alcance desde un **`agent.toml`** en la raíz del vault. Consulta [Configuración](/es/reference/configuration/) para ambos.
+
+## La separación metadata / inject / reveal
+
+Esta separación es por qué un agente puede ser útil y seguro al mismo tiempo:
+
+- Puede leer libremente **metadatos** — *que* existe un secreto, su coordenada, su [sensibilidad](/es/concepts/sensitivity/) — y razonar sobre tu proyecto.
+- Puede **inyectar** secretos en los comandos que ejecuta a través del wrapper, para que el comando trabaje con el valor real — pero ese plaintext nunca llega a la ventana de contexto del modelo.
+- Solo puede **revelar** un valor a su contexto en el caso estrecho que la política permite: un secreto no-`prod`, no-`high` que marcaste explícitamente como `revealable`. Tus secretos `high` / `prod` / `inject-only` nunca son revelables al agente — punto final.
+
+## El origen importa para `prod`
+
+kovra también rastrea **quién inició** una solicitud — `agent` o `human`. Esto pesa diferente para el camino de mayor riesgo: extraer plaintext de `prod` a un contexto solo se permite cuando un **humano** inicia una revelación deliberada en la CLI, nunca cuando un **agente** pregunta. La conveniencia que obtiene un agente nunca se extiende a exfiltrar secretos de producción.
+
+## En la práctica
+
+<Tabs syncKey="os">
+<TabItem label="macOS">
+
+```ansi frame="terminal" title="zsh" {1}
+~/my-app % kovra setup
+Vault ready; project `my-app`.
+Updated .mcp.json (register the kovra MCP server).
+Updated CLAUDE.md (insert/update the kovra conventions block).
+Setup complete. Review CLAUDE.md and .mcp.json, then reload your agent to pick up the MCP server.
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+<p class="os-soon"><strong>Windows — coming soon.</strong> Credential Manager + Windows Hello, the same security model.</p>
+
+</TabItem>
+</Tabs>
+
+Después de eso, el agente ve metadatos acotados y puede ejecutar comandos a través del wrapper. El plaintext de tus secretos sensibles permanece en el vault, en tu máquina, detrás de la política — exactamente donde todavía puedes *usarlo*.
